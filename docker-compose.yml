@@ -1,0 +1,151 @@
+# Atomia Cloud Suite - Docker Compose Configuration
+# Self-hosted AI-powered development environment
+
+services:
+  # ============================================
+  # OLLAMA - AI Backend (GPU-accelerated)
+  # ============================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: atomia-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_MODELS=/models
+      # GPU Configuration (auto-detected if not specified)
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ollama-data:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+        limits:
+          # Limit to 8GB RAM by default, adjust based on your system
+          memory: 16G
+          # Limit CPU cores (e.g., 4 cores)
+          cpus: '4.0'
+    networks:
+      - atomia-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # OPEN WEBUI - Chat Interface
+  # ============================================
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: atomia-openwebui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=change_this_secure_key_in_production
+      # Optional: Enable authentication
+      # - WEBUI_AUTH_SECRET=your_secure_secret_key
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+    networks:
+      - atomia-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # ============================================
+  # VS CODE SERVER (code-server)
+  # ============================================
+  code-server:
+    image: codercom/code-server:latest
+    container_name: atomia-codeserver
+    restart: unless-stopped
+    ports:
+      - "8443:8443"
+    environment:
+      - PASSWORD=change_this_password
+      - SUDO_PASSWORD=$PASSWORD
+      - TZ=Europe/Paris
+      # Disable telemetry
+      - CEREBRO_ENABLED=false
+    volumes:
+      - code-server-config:/home/coder
+      - code-server-projects:/projects
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+    networks:
+      - atomia-network
+
+  # ============================================
+  # CONTINUE DEV EXTENSION (installed via init script)
+  # Note: The extension is installed in the code-server container
+  # using the init script in volumes
+  # ============================================
+  # No separate container needed - integrated into code-server
+
+  # ============================================
+  # NGINX PROXY MANAGER (Optional - for external access)
+  # ============================================
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: atomia-nginx-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+      # Default credentials: admin@example.com / changeme
+    volumes:
+      - nginx-proxy-data:/data
+      - nginx-proxy-letsencrypt:/etc/letsencrypt
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    networks:
+      - atomia-network
+    # Only enable if needed - comment out if not using
+    # profiles:
+    #   - proxy
+
+networks:
+  atomia-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  ollama-data:
+    name: atomia-ollama-data
+  open-webui-data:
+    name: atomia-openwebui-data
+  code-server-config:
+    name: atomia-codeserver-config
+  code-server-projects:
+    name: atomia-codeserver-projects
+  nginx-proxy-data:
+    name: atomia-nginx-proxy-data
+  nginx-proxy-letsencrypt:
+    name: atomia-nginx-proxy-le

@@ -1,0 +1,147 @@
+{
+  "models": [
+    {
+      "model": "codellama",
+      "provider": "ollama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 16384,
+      "maxTokens": 4096,
+      "temperature": 0.3,
+      "title": "CodeLlama - Ollama"
+    },
+    {
+      "model": "deepseek-coder",
+      "provider": "ollama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 16384,
+      "maxTokens": 4096,
+      "temperature": 0.2,
+      "title": "DeepSeek Coder - Ollama"
+    },
+    {
+      "model": "llama3",
+      "provider": "ollama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 8192,
+      "maxTokens": 4096,
+      "temperature": 0.7,
+      "title": "Llama 3 - Ollama"
+    },
+    {
+      "model": "mistral",
+      "provider": "ollama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 8192,
+      "maxTokens": 4096,
+      "temperature": 0.5,
+      "title": "Mistral - Ollama"
+    },
+    {
+      "model": "phi3",
+      "provider": "ollama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 4096,
+      "maxTokens": 2048,
+      "temperature": 0.3,
+      "title": "Phi-3 - Ollama"
+    }
+  ],
+  "providerOverrides": {},
+  "embeddingsProvider": {
+    "provider": "ollama",
+    "model": "nomic-embed-text",
+    "apiBase": "http://ollama:11434"
+  },
+  "customCommands": [
+    {
+      "name": "explain",
+      "prompt": "{{{input}}}\n\nExplain the above code in simple terms, focusing on what it does and how it works.",
+      "description": "Explain selected code"
+    },
+    {
+      "name": "review",
+      "prompt": "{{{input}}}\n\nReview the above code and provide constructive feedback. Look for:\n1. Potential bugs or issues\n2. Code quality improvements\n3. Security concerns\n4. Performance optimizations",
+      "description": "Review selected code"
+    },
+    {
+      "name": "test",
+      "prompt": "{{{input}}}\n\nGenerate comprehensive unit tests for the above code. Include edge cases and error handling tests.",
+      "description": "Generate unit tests"
+    }
+  ],
+  "contextProviders": [
+    {
+      "name": "github",
+      "params": {}
+    },
+    {
+      "name": "grep",
+      "params": {}
+    },
+    {
+      "name": "tree",
+      "params": {}
+    },
+    {
+      "name": "file",
+      "params": {}
+    },
+    {
+      "name": "folder",
+      "params": {}
+    },
+    {
+      "name": "codebase",
+      "params": {}
+    },
+    {
+      "name": "docs",
+      "params": {}
+    },
+    {
+      "name": "url",
+      "params": {}
+    }
+  ],
+  "tabAutocompleteModel": {
+    "model": "codellama",
+    "provider": "ollama",
+    "apiBase": "http://ollama:11434",
+    "contextLength": 4096,
+    "maxTokens": 256,
+    "temperature": 0.1
+  },
+  "slashCommands": [
+    {
+      "name": "edit",
+      "description": "Edit code in place",
+      "params": []
+    },
+    {
+      "name": "chat",
+      "description": "Chat with Continue about your code",
+      "params": []
+    },
+    {
+      "name": "test",
+      "description": "Generate tests for highlighted code",
+      "params": []
+    },
+    {
+      "name": "explain",
+      "description": "Explain highlighted code",
+      "params": []
+    },
+    {
+      "name": "review",
+      "description": "Review highlighted code",
+      "params": []
+    }
+  ],
+  "allowAnonymousTelemetry": false,
+  "ui": {
+    "codeBlockTheme": "github-dark",
+    "fontSize": 14,
+    "fontFamily": "JetBrains Mono, Fira Code, monospace"
+  }
+}
