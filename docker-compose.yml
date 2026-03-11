@@ -1,6 +1,6 @@
 # Atomia Cloud Suite - Docker Compose Configuration
 # Self-hosted AI-powered development environment
-# Version: 2.0 - With Gitea Code Review
+# Version: 3.0 - With SSH, Auth, CI/CD
 
 services:
   # ============================================
@@ -16,11 +16,9 @@ services:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_MODELS=/models
       - OLLAMA_KEEP_ALIVE=24h
-      # GPU Configuration (auto-detected if not specified)
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
-      # Persistent storage for AI models - survives container recreation
       - ollama-models:/models:rw
     deploy:
       resources:
@@ -51,12 +49,10 @@ services:
       - "8080:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=change_this_secure_key_in_production
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change_this_secure_key_in_production}
       - WEBUI_NAME=Atomia Chat
-      # Optional: Enable authentication
-      # - WEBUI_AUTH_SECRET=your_secure_secret_key
+      - WEBUI_AUTH_SECRET=${WEBUI_AUTH_SECRET:-}
     volumes:
-      # Persistent storage for chats, settings, uploads
       - openwebui-data:/app/backend/data:rw
     depends_on:
       ollama:
@@ -72,7 +68,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ============================================
-  # VS CODE SERVER (code-server)
+  # VS CODE SERVER with SSH
   # ============================================
   code-server:
     image: codercom/code-server:latest
@@ -80,19 +76,22 @@ services:
     restart: unless-stopped
     ports:
       - "8443:8443"
+      - "2222:22"
     environment:
-      - PASSWORD=change_this_password
-      - SUDO_PASSWORD=$PASSWORD
+      - PASSWORD=${CODER_PASSWORD:-change_this_password}
+      - SUDO_PASSWORD=${CODER_PASSWORD:-change_this_password}
       - TZ=Europe/Paris
       - CEREBRO_ENABLED=false
       - GIT_EDITOR=/usr/bin/nano
+      # SSH Configuration
+      - SSH_PORT=22
+      - SSH_USER=coder
     volumes:
-      # Persistent storage for VS Code config and extensions
       - code-server-config:/home/coder:rw
-      # Projects directory - store your code here
       - code-server-projects:/projects:rw
-      # Continue config for AI coding
       - ./continue:/extension/continue:ro
+      # SSH keys
+      - code-server-ssh:/home/coder/.ssh:rw
     deploy:
       resources:
         limits:
@@ -102,7 +101,7 @@ services:
       - atomia-network
 
   # ============================================
-  # GITEA - Self-hosted Git Repository
+  # GITEA - Self-hosted Git with Auth & CI/CD
   # ============================================
   gitea:
     image: gitea/gitea:latest
@@ -114,24 +113,38 @@ services:
     environment:
       - USER_UID=1000
       - USER_GID=1000
-      - GITEA__server__DOMAIN=localhost
-      - GITEA__server__ROOT_URL=http://localhost:3000/
+      - GITEA__server__DOMAIN=${GITEA_DOMAIN:-localhost}
+      - GITEA__server__ROOT_URL=http://${GITEA_DOMAIN:-localhost}:3000/
       - GITEA__server__HTTP_PORT=3000
       - GITEA__server__SSH_PORT=2222
       - GITEA__server__DISABLE_SSH=false
       - GITEA__security__INSTALL_LOCK=true
       - GITEA__database__DB_TYPE=sqlite3
+      # Authentication Settings
       - GITEA__service__REGISTER_EMAIL_CONFIRM=false
       - GITEA__service__ENABLE_NOTIFY_MAIL=false
-      - GITEA__server__DEFAULT_KEEP_EMAIL_PRIVATE=false
+      - GITEA__service__DISABLE_REGISTRATION=${GITEA_DISABLE_REGISTRATION:-false}
+      - GITEA__service__REQUIRE_SIGNIN_VIEW=${GITEA_REQUIRE_SIGNIN:-false}
+      - GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION=${GITEA_ALLOW_EXTERNAL_AUTH:-false}
+      - GITEA__service__ENABLE_CAPTCHA=${GITEA_ENABLE_CAPTCHA:-false}
+      - GITEA__server__DEFAULT_KEEP_EMAIL_PRIVATE=${GITEA_KEEP_EMAIL_PRIVATE:-false}
       - GITEA__server__DEFAULT_ALLOW_CREATE_ORGANIZATION=true
       - GITEA__server__DEFAULT_ENABLE_TIMETRACKING=true
       - GITEA__openid__ENABLE_OPENID_SIGNIN=true
       - GITEA__openid__ENABLE_OPENID_SIGNUP=true
+      # Password Settings
+      - GITEA__security__PASSWORD_COMPLEXITY=off
+      - GITEA__security__MIN_PASSWORD_LENGTH=8
+      - GITEA__security__PASSWORD_HASH_ALGO=pbkdf2
+      # Session & Cookie
+      - GITEA__session__PROVIDER=file
+      - GITEA__session__COOKIE_SECURE=false
+      - GITEA__session__COOKIE_NAME=atomia_gitea
+      # CI/CD
+      - GITEA__actions__ENABLED=true
+      - GITEA__actions__DEFAULT_ACTIONS_URL=https://gitea.com/actions
     volumes:
-      # Persistent storage for git repositories, database, attachments
       - gitea-data:/data:rw
-      # SSH keys persistence
       - gitea-ssh:/data/git/.ssh:rw
     depends_on:
       - code-server
@@ -146,6 +159,33 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ============================================
+  # GITEA RUNNER - CI/CD Automation
+  # ============================================
+  gitea-runner:
+    image: gitea/act_runner:latest
+    container_name: atomia-gitea-runner
+    restart: unless-stopped
+    environment:
+      - GITEA_INSTANCE_URL=http://gitea:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${GITEA_RUNNER_TOKEN:-}
+      - GITEA_RUNNER_NAME=atomia-runner
+      - GITEA_RUNNER_LABELS=ubuntu-latest:hosted,ubuntu-22.04:hosted,ubuntu-20.04:hosted
+      - GITEA_RUNNER_CAPACITY=2
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - gitea-runner-data:/data:rw
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+    depends_on:
+      - gitea
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+    networks:
+      - atomia-network
+
+  # ============================================
   # NGINX PROXY MANAGER - Reverse Proxy & SSL
   # ============================================
   nginx-proxy-manager:
@@ -158,12 +198,9 @@ services:
       - "81:81"
     environment:
       - DB_SQLITE_FILE=/data/database.sqlite
-      # Default credentials: admin@example.com / changeme
     volumes:
       - nginx-proxy-data:/data:rw
       - nginx-proxy-letsencrypt:/etc/letsencrypt:rw
-    # Mount docker.sock for dynamic container discovery
-    volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     deploy:
       resources:
@@ -183,10 +220,8 @@ networks:
 
 # ============================================
 # PERSISTENT VOLUMES
-# All data survives container recreation
 # ============================================
 volumes:
-  # Ollama - AI Models (largest volume, typically 10-50GB+)
   ollama-models:
     name: atomia-ollama-models
     driver: local
@@ -195,7 +230,6 @@ volumes:
       o: bind
       device: ${OLLAMA_DATA_PATH:-./data/ollama}
 
-  # Open WebUI - Chats, settings, uploads
   openwebui-data:
     name: atomia-openwebui-data
     driver: local
@@ -204,7 +238,6 @@ volumes:
       o: bind
       device: ${OPENWEBUI_DATA_PATH:-./data/openwebui}
 
-  # Code Server - Config, extensions, themes
   code-server-config:
     name: atomia-codeserver-config
     driver: local
@@ -213,7 +246,6 @@ volumes:
       o: bind
       device: ${CODER_DATA_PATH:-./data/code-server}
 
-  # Code Server - Your projects (git repos, source code)
   code-server-projects:
     name: atomia-codeserver-projects
     driver: local
@@ -222,7 +254,14 @@ volumes:
       o: bind
       device: ${PROJECTS_PATH:-./projects}
 
-  # Gitea - Git repositories, database, attachments
+  code-server-ssh:
+    name: atomia-codeserver-ssh
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CODER_SSH_PATH:-./data/code-server-ssh}
+
   gitea-data:
     name: atomia-gitea-data
     driver: local
@@ -231,7 +270,6 @@ volumes:
       o: bind
       device: ${GITEA_DATA_PATH:-./data/gitea}
 
-  # Gitea - SSH keys
   gitea-ssh:
     name: atomia-gitea-ssh
     driver: local
@@ -240,7 +278,14 @@ volumes:
       o: bind
       device: ${GITEA_SSH_PATH:-./data/gitea-ssh}
 
-  # Nginx Proxy Manager - SSL certificates, config
+  gitea-runner-data:
+    name: atomia-gitea-runner-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${GITEA_RUNNER_PATH:-./data/gitea-runner}
+
   nginx-proxy-data:
     name: atomia-nginx-proxy-data
     driver: local

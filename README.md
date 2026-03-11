@@ -258,32 +258,147 @@ docker system df
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      ATOMIA CLOUD SUITE v2.0                    │
+│                      ATOMIA CLOUD SUITE v3.0                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│  │   OLLAMA     │◄──►│ OPEN WEBUI   │    │ CODE SERVER  │   │
-│  │  (AI GPU)    │    │   (Chat)     │    │   (VS Code)  │   │
-│  └──────────────┘    └──────────────┘    └──────────────┘   │
-│         │                   │                   │              │
-│         │                   │                   │              │
-│         └───────────────────┼───────────────────┘              │
-│                             │                                  │
-│                    ┌────────▼────────┐                        │
-│                    │ Docker Network  │                        │
-│                    │ atomia-network  │                        │
-│                    └─────────────────┘                        │
-│                             │                                  │
-│  ┌──────────────────────────┼──────────────────────────┐      │
-│  │                          │                          │      │
-│  ▼                          ▼                          ▼      │
-│ ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
-│ │    GITEA     │    │     DATA     │    │    NGINX     │   │
-│ │ (Git/PR)     │    │   VOLUMES    │    │ PROXY MGR    │   │
-│ └──────────────┘    └──────────────┘    └──────────────┘   │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
+│  │   OLLAMA     │◄──►│ OPEN WEBUI   │    │ CODE SERVER  │     │
+│  │  (AI GPU)    │    │   (Chat)     │    │ + SSH        │     │
+│  └──────────────┘    └──────────────┘    └──────────────┘     │
+│         │                   │                   │               │
+│         └───────────────────┼───────────────────┘               │
+│                             │                                   │
+│                    ┌────────▼────────┐                         │
+│                    │ Docker Network  │                         │
+│                    │ atomia-network  │                         │
+│                    └─────────────────┘                         │
+│                             │                                   │
+│  ┌──────────────────────────┼──────────────────────────┐       │
+│  │                          │                          │       │
+│  ▼                          ▼                          ▼       │
+│ ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│ │    GITEA     │    │  GITEA       │    │    NGINX     │    │
+│ │ (Git/PR)     │    │  RUNNER      │    │ PROXY MGR    │    │
+│ │ + Auth       │    │  (CI/CD)     │    │ + SSL        │    │
+│ └──────────────┘    └──────────────┘    └──────────────┘    │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## SSH - Connexion Locale VS Code
+
+### Configuration Automatique
+
+```bash
+# Générer les clés SSH
+chmod +x ssh-setup.sh
+./ssh-setup.sh
+```
+
+### Configuration Manuelle
+
+1. **Installer l'extension Remote SSH** dans VS Code local
+
+2. **Ajouter la configuration** dans `~/.ssh/config` :
+
+```bash
+Host atomia
+    HostName <VOTRE-IP-SERVEUR>
+    Port 2222
+    User coder
+    IdentityFile ~/.ssh/id_rsa_atomia
+```
+
+3. **Connecter** : `Ctrl+Shift+P` → "Remote SSH: Connect to Host"
+
+### Clé SSH
+
+Les clés SSH sont stockées dans : `./data/code-server-ssh/`
+
+## Authentification Gitea
+
+### Configuration
+
+Dans `.env` :
+
+```bash
+# Désactiver l'enregistrement public (admin seulement)
+GITEA_DISABLE_REGISTRATION=true
+
+# Exiger une connexion pour voir les dépôts
+GITEA_REQUIRE_SIGNIN=true
+
+# Activer CAPTCHA
+GITEA_ENABLE_CAPTCHA=true
+```
+
+### Niveaux d'Accès
+
+| Rôle | Dépôts Privés | Issues | Pull Requests |
+|------|---------------|--------|---------------|
+| **Admin** | ✓ Complet | ✓ Complet | ✓ Complet |
+| **Member** | ✓ Lecture/Écriture | ✓ Lecture/Écriture | ✓ Lecture/Écriture |
+| **Collaborator** | ✓ Lecture seule | ✓ Lecture | ✓ Lecture |
+| **Guest** | ✗ | ✓ Lecture | ✗ |
+
+### Créer un Utilisateur
+
+1. Allez dans : `http://localhost:3000/admin/users`
+2. Cliquez "Create User"
+3. Définissez mot de passe et rôle
+
+## CI/CD avec Gitea Actions
+
+### Configuration du Runner
+
+1. Démarrez les services : `docker compose up -d`
+
+2. Obtenez le token du runner :
+   - Allez dans `http://localhost:3000/admin/actions/runner`
+   - Cliquez "Register Runner"
+   - Copiez le token
+
+3. Configurez le runner :
+```bash
+# Modifier .env
+GITEA_RUNNER_TOKEN=<VOTRE_TOKEN>
+
+# Redémarrer le runner
+docker compose restart gitea-runner
+```
+
+### Créer un Workflow
+
+Créez `.gitea/workflows/ci.yml` dans votre dépôt :
+
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: echo "Tests passed!"
+```
+
+### Exemples de Workflows Inclus
+
+| Fichier | Description |
+|---------|-------------|
+| `.gitea/workflows/ci-pipeline.yml` | Node.js CI (lint, test, build) |
+| `.gitea/workflows/python-ci.yml` | Python CI (flake8, pytest) |
+
+### Variables d'Environnement CI
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | Token automatique |
+| `GITEA_REPO` | Dépôt courant |
+| `GITEA_COMMIT_SHA` | Commit SHA |
 
 ## Licence
 

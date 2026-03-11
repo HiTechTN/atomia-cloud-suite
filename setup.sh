@@ -110,6 +110,9 @@ docker pull codercom/code-server:latest
 echo "Pulling Gitea..."
 docker pull gitea/gitea:latest
 
+echo "Pulling Gitea Runner..."
+docker pull gitea/act_runner:latest
+
 # Optional: Nginx Proxy Manager
 # echo "Pulling Nginx Proxy Manager..."
 # docker pull jc21/nginx-proxy-manager:latest
