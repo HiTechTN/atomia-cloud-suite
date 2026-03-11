@@ -86,6 +86,7 @@ services:
     volumes:
       - code-server-config:/home/coder
       - code-server-projects:/projects
+      - ./continue:/extension/continue:ro
     deploy:
       resources:
         limits:
