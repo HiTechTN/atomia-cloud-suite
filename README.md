@@ -400,6 +400,129 @@ jobs:
 | `GITEA_REPO` | Dépôt courant |
 | `GITEA_COMMIT_SHA` | Commit SHA |
 
+## RAG - Retrieval Augmented Generation
+
+### Configuration
+
+Le RAG utilise Qdrant comme base de données vectorielle :
+
+```bash
+# Dans .env
+QDRANT_API_KEY=optional_api_key
+```
+
+### Utiliser le RAG dans Open WebUI
+
+1. Ouvrez http://localhost:8080
+2. Allez dans **Settings** → **Knowledge**
+3. Cliquez **Create Knowledge Base**
+4. Importez vos documents (PDF, TXT, MD, etc.)
+5. Dans le chat, le chatbot peut maintenant répondre basé sur vos documents
+
+### Types de Documents Supportés
+
+| Type | Extension |
+|------|-----------|
+| PDF | .pdf |
+| Texte | .txt, .md |
+| Word | .docx |
+| Excel | .xlsx |
+| CSV | .csv |
+
+### Commandes RAG
+
+Dans le chat, utilisez `@nom_de_la_base` pour mentionner une base de connaissances :
+
+```
+@ma-base de connaissances, comment configurer l'authentification ?
+```
+
+## Email Notifications - Gitea
+
+### Configuration SMTP
+
+Éditez `.env` :
+
+```bash
+# Activer les emails
+MAIL_ENABLED=true
+
+# Serveur SMTP
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USER=your_email@gmail.com
+MAIL_PASSWORD=app_specific_password
+MAIL_FROM=Atomia Gitea <noreply@atomia.local>
+MAIL_SKIP_VERIFY=true
+```
+
+### Pour Gmail
+
+1. Activer l'authentification à deux facteurs
+2. Créer un "Mot de passe application" : https://myaccount.google.com/apppasswords
+3. Utiliser le mot de passe application comme `MAIL_PASSWORD`
+
+### Événements Notifiés
+
+| Événement | Description |
+|-----------|-------------|
+| **Nouveau commit** | Notification de push |
+| **Pull Request** | Créé, fusionné, fermé |
+| **Issue** | Créé, commenté, fermé |
+| **Publication de release** | Nouvelle version |
+| **Invitation collaborateur** | Accès au dépôt |
+
+### Tester les Emails
+
+1. Allez dans `http://localhost:3000/user/settings/notification`
+2. Configurez les préférences de notification
+3. Testez avec un commit ou une issue
+
+## HTTPS - SSL/TLS
+
+### Option 1 : Nginx Proxy Manager (Recommandé)
+
+1. Démarrez Nginx Proxy Manager :
+```bash
+docker compose up -d nginx-proxy-manager
+```
+
+2. Ouvrez http://localhost:81
+3. Connectez-vous : `admin@example.com` / `changeme`
+
+4. **Ajouter un Proxy Host** :
+   - Domain Name : `git.votre-domaine.com`
+   - Forward Hostname/IP : `172.28.0.x` (IP de Gitea)
+   - Port : `3000`
+   - Enable SSL : ✅
+
+5. **Obtenir un certificat SSL** :
+   - Request SSL Certificate : ✅
+   - Let's Encrypt : ✅
+   - Domain(s) : `git.votre-domaine.com`
+   - Email : `your@email.com`
+
+### Option 2 : Configuration Manuelle
+
+Utilisez le fichier `nginx/gitea-ssl.conf` comme modèle :
+
+```bash
+# Copier le certificat
+sudo cp /etc/letsencrypt/live/votre-domaine/fullchain.pem /data/ssl/
+sudo cp /etc/letsencrypt/live/votre-domaine/privkey.pem /data/ssl/
+
+# Redémarrer Nginx
+docker compose restart nginx-proxy-manager
+```
+
+### URLs avec HTTPS
+
+| Service | URL HTTPS |
+|---------|-----------|
+| **Gitea** | https://git.votre-domaine.com |
+| **Open WebUI** | https://chat.votre-domaine.com |
+| **Code Server** | https://code.votre-domaine.com |
+
 ## Licence
 
 MIT License - Libre d'utilisation et de modification.

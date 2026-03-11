@@ -86,6 +86,7 @@ mkdir -p data/openwebui
 mkdir -p data/code-server
 mkdir -p data/gitea
 mkdir -p data/gitea-ssh
+mkdir -p data/qdrant
 mkdir -p projects
 mkdir -p continue
 
@@ -112,6 +113,9 @@ docker pull gitea/gitea:latest
 
 echo "Pulling Gitea Runner..."
 docker pull gitea/act_runner:latest
+
+echo "Pulling Qdrant (Vector Database for RAG)..."
+docker pull qdrant/qdrant:latest
 
 # Optional: Nginx Proxy Manager
 # echo "Pulling Nginx Proxy Manager..."

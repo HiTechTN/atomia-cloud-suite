@@ -1,6 +1,6 @@
 # Atomia Cloud Suite - Docker Compose Configuration
 # Self-hosted AI-powered development environment
-# Version: 3.0 - With SSH, Auth, CI/CD
+# Version: 3.1 - With RAG, Email Notifications, HTTPS
 
 services:
   # ============================================
@@ -39,7 +39,34 @@ services:
       retries: 3
 
   # ============================================
-  # OPEN WEBUI - Chat Interface
+  # QDRANT - Vector Database for RAG
+  # ============================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: atomia-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    environment:
+      - QDRANT_STORAGE=/qdrant/storage
+    volumes:
+      - qdrant-data:/qdrant/storage:rw
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+    networks:
+      - atomia-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # OPEN WEBUI - Chat with RAG
   # ============================================
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -52,10 +79,19 @@ services:
       - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change_this_secure_key_in_production}
       - WEBUI_NAME=Atomia Chat
       - WEBUI_AUTH_SECRET=${WEBUI_AUTH_SECRET:-}
+      # RAG Configuration
+      - ENABLE_RAG_WEB_SEARCH=false
+      - RAG_EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=true
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - ENABLE_RAG=true
     volumes:
       - openwebui-data:/app/backend/data:rw
     depends_on:
       ollama:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     deploy:
       resources:
@@ -83,14 +119,12 @@ services:
       - TZ=Europe/Paris
       - CEREBRO_ENABLED=false
       - GIT_EDITOR=/usr/bin/nano
-      # SSH Configuration
       - SSH_PORT=22
       - SSH_USER=coder
     volumes:
       - code-server-config:/home/coder:rw
       - code-server-projects:/projects:rw
       - ./continue:/extension/continue:ro
-      # SSH keys
       - code-server-ssh:/home/coder/.ssh:rw
     deploy:
       resources:
@@ -101,7 +135,7 @@ services:
       - atomia-network
 
   # ============================================
-  # GITEA - Self-hosted Git with Auth & CI/CD
+  # GITEA - Self-hosted Git with Auth, Email, CI/CD
   # ============================================
   gitea:
     image: gitea/gitea:latest
@@ -114,7 +148,7 @@ services:
       - USER_UID=1000
       - USER_GID=1000
       - GITEA__server__DOMAIN=${GITEA_DOMAIN:-localhost}
-      - GITEA__server__ROOT_URL=http://${GITEA_DOMAIN:-localhost}:3000/
+      - GITEA__server__ROOT_URL=${GITEA_ROOT_URL:-http://localhost:3000/}
       - GITEA__server__HTTP_PORT=3000
       - GITEA__server__SSH_PORT=2222
       - GITEA__server__DISABLE_SSH=false
@@ -122,7 +156,7 @@ services:
       - GITEA__database__DB_TYPE=sqlite3
       # Authentication Settings
       - GITEA__service__REGISTER_EMAIL_CONFIRM=false
-      - GITEA__service__ENABLE_NOTIFY_MAIL=false
+      - GITEA__service__ENABLE_NOTIFY_MAIL=${GITEA_ENABLE_MAIL:-false}
       - GITEA__service__DISABLE_REGISTRATION=${GITEA_DISABLE_REGISTRATION:-false}
       - GITEA__service__REQUIRE_SIGNIN_VIEW=${GITEA_REQUIRE_SIGNIN:-false}
       - GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION=${GITEA_ALLOW_EXTERNAL_AUTH:-false}
@@ -140,12 +174,21 @@ services:
       - GITEA__session__PROVIDER=file
       - GITEA__session__COOKIE_SECURE=false
       - GITEA__session__COOKIE_NAME=atomia_gitea
+      # Email Configuration (SMTP)
+      - GITEA__mailer__ENABLED=${MAIL_ENABLED:-false}
+      - GITEA__mailer__HOST=${MAIL_HOST:-}
+      - GITEA__mailer__PORT=${MAIL_PORT:-587}
+      - GITEA__mailer__FROM=${MAIL_FROM:-noreply@atomia.local}
+      - GITEA__mailer__USER=${MAIL_USER:-}
+      - GITEA__mailer__PASSWD=${MAIL_PASSWORD:-}
+      - GITEA__mailer__SKIP_VERIFY=${MAIL_SKIP_VERIFY:-true}
       # CI/CD
       - GITEA__actions__ENABLED=true
       - GITEA__actions__DEFAULT_ACTIONS_URL=https://gitea.com/actions
     volumes:
       - gitea-data:/data:rw
       - gitea-ssh:/data/git/.ssh:rw
+      - /etc/localtime:/etc/localtime:ro
     depends_on:
       - code-server
     deploy:
@@ -186,7 +229,7 @@ services:
       - atomia-network
 
   # ============================================
-  # NGINX PROXY MANAGER - Reverse Proxy & SSL
+  # NGINX PROXY MANAGER - Reverse Proxy with SSL
   # ============================================
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
@@ -229,6 +272,14 @@ volumes:
       type: none
       o: bind
       device: ${OLLAMA_DATA_PATH:-./data/ollama}
+
+  qdrant-data:
+    name: atomia-qdrant-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${QDRANT_DATA_PATH:-./data/qdrant}
 
   openwebui-data:
     name: atomia-openwebui-data
