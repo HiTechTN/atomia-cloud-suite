@@ -72,6 +72,7 @@ sudo systemctl restart docker
 |---------|-----|-------------|
 | **Open WebUI** | http://localhost:8080 | Interface chat IA |
 | **Code Server** | http://localhost:8443 | IDE VS Code |
+| **Gitea** | http://localhost:3000 | Serveur Git auto-hébergé |
 | **Ollama API** | http://localhost:11434 | API REST |
 | **Nginx Proxy** | http://localhost:81 | Proxy inverse (optionnel) |
 
@@ -151,6 +152,7 @@ Pour accéder depuis l'extérieur via Nginx Proxy Manager :
    - Host : `ollama.votre-domaine.com` → `172.28.0.x:11434`
    - Host : `chat.votre-domaine.com` → `172.28.0.x:8080`
    - Host : `code.votre-domaine.com` → `172.28.0.x:8443`
+   - Host : `git.votre-domaine.com` → `172.28.0.x:3000`
 
 ## Personnalisation des Ressources
 
@@ -168,6 +170,59 @@ Recommandations :
 - **Ollama** : 8-16GB RAM, 2-4 CPU (plus si GPU)
 - **Open WebUI** : 2-4GB RAM, 1-2 CPU
 - **Code Server** : 4-8GB RAM, 2-4 CPU
+- **Gitea** : 2-4GB RAM, 1-2 CPU
+
+## Stockage Persistant
+
+Les données sont stockées dans des volumes Docker persistants :
+
+```
+data/
+├── ollama/          # Modèles IA (10-50GB+)
+├── openwebui/       # Chats, paramètres, uploads
+├── code-server/     # Config, extensions VS Code
+├── gitea/           # Dépôts Git, base de données
+├── gitea-ssh/       # Clés SSH
+projects/            # Vos projets de code
+```
+
+Pour sauvegarder : `tar -czvf atomia-backup.tar.gz data/ projects/`
+
+## Gitea - Serveur Git
+
+### Configuration Initiale
+
+1. Ouvrez http://localhost:3000
+2. Suivez l'assistant d'installation :
+   - Type de base de données : SQLite3
+   - Chemin des données : /data
+   - Nom de domaine : localhost
+   - URL du serveur : http://localhost:3000
+
+### Utiliser avec Code Server
+
+Dans Code Server, configurez Git :
+
+```bash
+# Configurer Git
+git config --global user.name "Votre Nom"
+git config --global user.email "vous@atomia.local"
+
+# Cloner un dépôt Gitea
+git clone http://localhost:3000/votre-user/votre-repo.git
+
+# Ou via SSH
+git clone ssh://git@localhost:2222/votre-user/votre-repo.git
+```
+
+### Fonctionnalités Gitea
+
+- Gestion de dépôts Git
+- Pull requests avec revue de code
+- Issues et项目管理
+- Wiki intégré
+- CI/CD basique
+- Authentification OAuth2
 
 ## Dépannage
 
@@ -202,28 +257,32 @@ docker system df
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    ATOMIA CLOUD SUITE                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │   OLLAMA     │◄──►│ OPEN WEBUI   │    │ CODE SERVER  │  │
-│  │  (AI GPU)    │    │   (Chat)     │    │   (VS Code)  │  │
-│  └──────────────┘    └──────────────┘    └──────────────┘  │
-│         │                   │                   │           │
-│         └───────────────────┼───────────────────┘           │
-│                             │                               │
-│                    ┌────────▼────────┐                       │
-│                    │ Docker Network │                       │
-│                    │ atomia-network │                       │
-│                    └────────────────┘                       │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │           NGINX PROXY MANAGER (Optional)             │   │
-│  │           External access via domain                  │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                      ATOMIA CLOUD SUITE v2.0                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
+│  │   OLLAMA     │◄──►│ OPEN WEBUI   │    │ CODE SERVER  │   │
+│  │  (AI GPU)    │    │   (Chat)     │    │   (VS Code)  │   │
+│  └──────────────┘    └──────────────┘    └──────────────┘   │
+│         │                   │                   │              │
+│         │                   │                   │              │
+│         └───────────────────┼───────────────────┘              │
+│                             │                                  │
+│                    ┌────────▼────────┐                        │
+│                    │ Docker Network  │                        │
+│                    │ atomia-network  │                        │
+│                    └─────────────────┘                        │
+│                             │                                  │
+│  ┌──────────────────────────┼──────────────────────────┐      │
+│  │                          │                          │      │
+│  ▼                          ▼                          ▼      │
+│ ┌──────────────┐    ┌──────────────┐    ┌──────────────┐   │
+│ │    GITEA     │    │     DATA     │    │    NGINX     │   │
+│ │ (Git/PR)     │    │   VOLUMES    │    │ PROXY MGR    │   │
+│ └──────────────┘    └──────────────┘    └──────────────┘   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Licence

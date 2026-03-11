@@ -76,17 +76,22 @@ else
 fi
 
 # =============================================================================
-# STEP 4: Create Docker Network and Volumes
+# STEP 4: Create Docker Network and Data Directories
 # =============================================================================
-echo -e "${YELLOW}[4/5] Creating Docker network and volumes...${NC}"
+echo -e "${YELLOW}[4/5] Creating Docker network and data directories...${NC}"
+
+# Create data directories for persistent storage
+mkdir -p data/ollama
+mkdir -p data/openwebui
+mkdir -p data/code-server
+mkdir -p data/gitea
+mkdir -p data/gitea-ssh
+mkdir -p projects
+mkdir -p continue
+
+echo -e "${GREEN}✓ Data directories created${NC}"
 
 docker network create atomia-network 2>/dev/null || echo "Network already exists"
-docker volume create atomia-ollama-data 2>/dev/null || echo "Volume already exists"
-docker volume create atomia-openwebui-data 2>/dev/null || echo "Volume already exists"
-docker volume create atomia-codeserver-config 2>/dev/null || echo "Volume already exists"
-docker volume create atomia-codeserver-projects 2>/dev/null || echo "Volume already exists"
-
-echo -e "${GREEN}✓ Network and volumes created${NC}"
 
 # =============================================================================
 # STEP 5: Pull Docker Images
@@ -101,6 +106,9 @@ docker pull ghcr.io/open-webui/open-webui:main
 
 echo "Pulling Code Server..."
 docker pull codercom/code-server:latest
+
+echo "Pulling Gitea..."
+docker pull gitea/gitea:latest
 
 # Optional: Nginx Proxy Manager
 # echo "Pulling Nginx Proxy Manager..."
@@ -188,11 +196,13 @@ echo ""
 echo -e "${BLUE}📍 Access URLs:${NC}"
 echo -e "  • Open WebUI (Chat):    http://localhost:8080"
 echo -e "  • Code Server (IDE):    http://localhost:8443"
+echo -e "  • Gitea (Git Server):   http://localhost:3000"
 echo -e "  • Ollama API:           http://localhost:11434"
 echo -e "  • Nginx Proxy Manager:  http://localhost:81 (if enabled)"
 echo ""
 echo -e "${YELLOW}⚠️  Default Credentials:${NC}"
 echo -e "  • Code Server:          password = 'change_this_password'"
+echo -e "  • Gitea:                Username: admin, Password: change_this_password"
 echo -e "  • Nginx Proxy Manager:   admin@example.com / changeme"
 echo ""
 echo -e "${BLUE}📝 Useful Commands:${NC}"
@@ -200,5 +210,6 @@ echo "  docker compose logs -f        # View logs"
 echo "  docker compose restart        # Restart all services"
 echo "  docker compose down           # Stop all services"
 echo "  docker compose logs -f ollama # View Ollama logs"
+echo "  docker compose logs -f gitea  # View Gitea logs"
 echo ""
 echo -e "${GREEN}Enjoy your AI-powered development environment! 🚀${NC}"
