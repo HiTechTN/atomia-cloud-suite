@@ -400,6 +400,65 @@ jobs:
 | `GITEA_REPO` | Dépôt courant |
 | `GITEA_COMMIT_SHA` | Commit SHA |
 
+## IA Code Completion (Auto-complétion)
+
+### Configuration
+
+L'auto-complétion est gérée par l'extension **Continue.dev** déjà intégrée. Elle utilise les modèles locaux d'Ollama (par défaut `codellama`).
+
+### Activer l'Auto-complétion
+
+1. Ouvrez **Code Server** (http://localhost:8443)
+2. Assurez-vous que l'extension **Continue** est installée
+3. Appuyez sur `Ctrl+I` pour ouvrir la barre Continue
+4. Sélectionnez le modèle `codellama` ou `deepseek-coder` dans la liste déroulante
+5. L'auto-complétion en ligne (ghost text) s'activera automatiquement lors de la saisie
+
+## Monitoring (Prometheus & Grafana)
+
+### Accès
+
+| Service | URL | Identifiants par défaut |
+|---------|-----|-------------------------|
+| **Grafana** | http://localhost:3001 | `admin` / `admin` (ou configuré dans `.env`) |
+| **Prometheus** | http://localhost:9090 | Accès direct |
+| **cAdvisor** | http://localhost:8081 | Accès direct |
+
+### Configuration Grafana
+
+1. Connectez-vous à Grafana (http://localhost:3001)
+2. Allez dans **Connections** → **Data Sources**
+3. Cliquez sur **Add Data Source** → **Prometheus**
+4. URL : `http://prometheus:9090`
+5. Cliquez sur **Save & Test**
+
+### Tableaux de bord (Dashboards) recommandé
+
+- Importez le dashboard cAdvisor (ID: `14282`) pour voir l'utilisation des conteneurs.
+
+## Sauvegardes Automatisées (Backups)
+
+### Utilisation Manuelle
+
+```bash
+chmod +x backup.sh
+./backup.sh
+```
+
+Les sauvegardes sont créées dans le dossier `./backups/` sous forme de fichiers `.tar.gz` datés.
+
+### Automatisation (Cron)
+
+Pour automatiser une sauvegarde quotidienne à 3h du matin :
+
+1. Ouvrez la crontab : `crontab -e`
+2. Ajoutez la ligne suivante :
+   `0 3 * * * /chemin/vers/votre/atomia-cloud-suite/backup.sh`
+
+### Rétention
+
+Le script conserve par défaut les **7 derniers jours** de sauvegardes. Vous pouvez modifier `RETENTION_DAYS` dans `backup.sh`.
+
 ## RAG - Retrieval Augmented Generation
 
 ### Configuration

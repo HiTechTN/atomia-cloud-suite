@@ -87,6 +87,10 @@ mkdir -p data/code-server
 mkdir -p data/gitea
 mkdir -p data/gitea-ssh
 mkdir -p data/qdrant
+mkdir -p data/prometheus
+mkdir -p data/grafana
+mkdir -p monitoring
+mkdir -p backups
 mkdir -p projects
 mkdir -p continue
 
@@ -116,6 +120,11 @@ docker pull gitea/act_runner:latest
 
 echo "Pulling Qdrant (Vector Database for RAG)..."
 docker pull qdrant/qdrant:latest
+
+echo "Pulling Monitoring Stack (Prometheus, Grafana, cAdvisor)..."
+docker pull prom/prometheus:latest
+docker pull grafana/grafana:latest
+docker pull gcr.io/cadvisor/cadvisor:latest
 
 # Optional: Nginx Proxy Manager
 # echo "Pulling Nginx Proxy Manager..."
@@ -205,6 +214,7 @@ echo -e "  • Open WebUI (Chat):    http://localhost:8080"
 echo -e "  • Code Server (IDE):    http://localhost:8443"
 echo -e "  • Gitea (Git Server):   http://localhost:3000"
 echo -e "  • Ollama API:           http://localhost:11434"
+echo -e "  • Grafana (Monitoring): http://localhost:3001"
 echo -e "  • Nginx Proxy Manager:  http://localhost:81 (if enabled)"
 echo ""
 echo -e "${YELLOW}⚠️  Default Credentials:${NC}"
