@@ -406,6 +406,17 @@ jobs:
 
 L'auto-complétion est gérée par l'extension **Continue.dev** déjà intégrée. Elle utilise les modèles locaux d'Ollama (par défaut `codellama`).
 
+### Installation Automatique d'Extensions
+
+Vous pouvez configurer Code Server pour installer automatiquement des extensions personnalisées depuis des URLs distantes (fichiers `.vsix`).
+
+1. Éditez votre fichier `.env`.
+2. Ajoutez les URLs des extensions dans la variable `EXTENSION_URLS`, séparées par des virgules :
+   ```bash
+   EXTENSION_URLS=https://github.com/username/repo/releases/download/v1.0.0/extension.vsix,https://example.com/another-ext.vsix
+   ```
+3. Redémarrez les conteneurs : `docker compose up -d`.
+
 ### Activer l'Auto-complétion
 
 1. Ouvrez **Code Server** (http://localhost:8443)

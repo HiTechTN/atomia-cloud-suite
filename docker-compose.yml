@@ -104,14 +104,14 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ============================================
-  # VS CODE SERVER with SSH
+  # VS CODE SERVER with SSH & Auto-Install
   # ============================================
   code-server:
     image: codercom/code-server:latest
     container_name: atomia-codeserver
     restart: unless-stopped
     ports:
-      - "8443:8443"
+      - "8443:8080"
       - "2222:22"
     environment:
       - PASSWORD=${CODER_PASSWORD:-change_this_password}
@@ -121,11 +121,14 @@ services:
       - GIT_EDITOR=/usr/bin/nano
       - SSH_PORT=22
       - SSH_USER=coder
+      - EXTENSION_URLS=${EXTENSION_URLS:-}
     volumes:
       - code-server-config:/home/coder:rw
       - code-server-projects:/projects:rw
       - ./continue:/extension/continue:ro
+      - ./code-server-init.sh:/usr/local/bin/init.sh:ro
       - code-server-ssh:/home/coder/.ssh:rw
+    entrypoint: ["/bin/bash", "/usr/local/bin/init.sh"]
     deploy:
       resources:
         limits:
