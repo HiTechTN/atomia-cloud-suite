@@ -1,5 +1,5 @@
 # Atomia Cloud Suite - Docker Compose Configuration
-# Version: 4.0 - Auth + RAG Persistence + GPU + Monitoring
+# Version: 4.1 - Deploy Pipelines + Gitea + Advanced AI + Custom Models + RAG + Remote Debug
 
 services:
 
@@ -138,7 +138,7 @@ services:
       retries: 3
 
   # ============================================
-  # VS CODE SERVER - SSH + Auto-Install Extensions
+  # VS CODE SERVER - SSH + Extensions + Remote Debug
   # ============================================
   code-server:
     image: codercom/code-server:latest
@@ -147,6 +147,10 @@ services:
     ports:
       - "8443:8080"
       - "2223:22"
+      # Remote debug ports (Node, Python debugpy, Go dlv)
+      - "9229:9229"   # Node.js inspector
+      - "5678:5678"   # Python debugpy
+      - "2345:2345"   # Go delve
     environment:
       - PASSWORD=${CODER_PASSWORD:-change_this_password}
       - SUDO_PASSWORD=${CODER_PASSWORD:-change_this_password}
@@ -154,11 +158,26 @@ services:
       - CEREBRO_ENABLED=false
       - GIT_EDITOR=/usr/bin/nano
       - EXTENSION_URLS=${EXTENSION_URLS:-}
+      # Gitea integration
+      - GITEA_DOMAIN=${GITEA_DOMAIN:-localhost}
+      - GITEA_SSH_PORT=${GITEA_SSH_PORT:-2222}
+      - GITEA_HTTP_PORT=${GITEA_HTTP_PORT:-3000}
+      - GIT_USER_NAME=${GIT_USER_NAME:-Atomia Developer}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-dev@atomia.local}
+      # RAG
+      - QDRANT_URL=http://qdrant:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - OLLAMA_HOST=http://ollama:11434
+      - RAG_EMBED_MODEL=${RAG_EMBEDDING_MODEL:-nomic-embed-text}
     volumes:
       - code-server-config:/home/coder:rw
       - code-server-projects:/projects:rw
       - ./continue:/extension/continue:ro
       - ./code-server-init.sh:/usr/local/bin/init.sh:ro
+      - ./rag/rag-index.sh:/extension/rag/rag-index.sh:ro
+      - ./models/custom-model-upload.sh:/extension/models/custom-model-upload.sh:ro
+      - ./debug-templates:/extension/debug-templates:ro
+      - ./deploy:/extension/deploy:ro
       - code-server-ssh:/home/coder/.ssh:rw
     entrypoint: ["/bin/bash", "/usr/local/bin/init.sh"]
     deploy:

@@ -1,6 +1,6 @@
-# Atomia Cloud Suite v4.0
+# Atomia Cloud Suite v4.1
 
-A fully self-hosted, AI-powered personal development cloud — Git, IDE, AI chat, authentication, monitoring, and automated backups in a single `docker compose up`.
+A fully self-hosted AI-powered development cloud — Git, IDE, SSO, AI chat, monitoring, automated pipelines, and backups in a single `docker compose up`.
 
 ---
 
@@ -10,32 +10,288 @@ A fully self-hosted, AI-powered personal development cloud — Git, IDE, AI chat
 git clone https://github.com/HiTechTN/atomia-cloud-suite.git
 cd atomia-cloud-suite
 
-cp .env.example .env        # edit passwords first!
+cp .env.example .env         # edit passwords first!
 chmod +x setup.sh
 ./setup.sh
 ```
 
 ---
 
-## Services & URLs
+## Service Map
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **Open WebUI** | http://localhost:8080 | AI chat with RAG |
+| **Open WebUI** | http://localhost:8080 | AI chat + RAG |
 | **Code Server** | http://localhost:8443 | Browser IDE (VS Code) |
 | **Gitea** | http://localhost:3000 | Self-hosted Git |
 | **Authelia** | http://localhost:9091 | SSO & MFA portal |
-| **Grafana** | http://localhost:3001 | Container dashboards |
+| **Grafana** | http://localhost:3001 | Dashboards & alerts |
 | **Prometheus** | http://localhost:9090 | Raw metrics |
 | **Ollama API** | http://localhost:11434 | Local LLM inference |
 | **Nginx Proxy Mgr** | http://localhost:81 | Reverse proxy + SSL |
-| **Qdrant** | http://localhost:6333 | Vector store for RAG |
+| **Qdrant** | http://localhost:6333 | Vector store (RAG) |
+
+---
+
+## Automated Deployment Pipelines
+
+Atomia includes a universal deploy script that integrates with Gitea Actions to push code to **staging** or **production** automatically on every commit.
+
+### How It Works
+
+```
+git push → Gitea → Actions Runner → deploy.sh → docker compose up
+```
+
+A pre-built workflow lives at `.gitea/workflows/auto-deploy.yml`:
+
+| Branch | Target |
+|--------|--------|
+| `develop` | Staging (port 8082) |
+| `staging` | Staging (port 8082) |
+| `main` | Production (port 8080) |
+
+### Manual Deploy
+
+```bash
+chmod +x deploy/deploy.sh
+
+# Deploy to staging
+./deploy/deploy.sh staging http://localhost:3000/user/myapp.git develop /projects/myapp
+
+# Deploy to production
+./deploy/deploy.sh production http://localhost:3000/user/myapp.git main /projects/myapp
+```
+
+### Per-environment Config
+
+- `deploy/docker-compose.staging.yml` — port overrides for staging
+- `deploy/.staging.env` — (create yourself) staging-only env vars
+
+### Deploy Script Steps
+
+1. `git pull` — sync latest code
+2. `docker build` — build image from Dockerfile (if present)
+3. Run tests — npm test / pytest (staging only)
+4. `docker compose up -d` — rolling deploy
+5. Health check — polls `HEALTH_CHECK_URL` until live
+
+---
+
+## Gitea Integration
+
+Code Server is pre-wired to your Gitea instance at startup via `code-server-init.sh`.
+
+### What's Auto-Configured
+
+- A dedicated `id_gitea` SSH key is generated for the `coder` user
+- An SSH config alias `atomia-git` maps to Gitea's SSH port
+- `git config --global` is set from `GIT_USER_NAME` and `GIT_USER_EMAIL` in `.env`
+- `git clone atomia-git:user/repo` works without any manual setup
+
+### Add SSH Key to Gitea
+
+On first start, the init script prints your public key in the container logs:
+
+```bash
+docker compose logs code-server | grep -A3 "Add this SSH public key"
+```
+
+Paste it at: **Gitea → User Settings → SSH / GPG Keys → Add Key**
+
+### Clone a Repo
+
+In the Code Server terminal:
+
+```bash
+git clone ssh://git@atomia-git/your-username/your-repo
+# or via HTTPS
+git clone http://localhost:3000/your-username/your-repo
+```
+
+---
+
+## Advanced AI Code Completion
+
+### Models
+
+| Role | Model | Characteristics |
+|------|-------|-----------------|
+| **Primary chat** | `qwen2.5-coder:7b` | 32K context, best code quality |
+| **Tab autocomplete** | `starcoder2:3b` | 4K context, ~100ms latency |
+| **Fallback chat** | `deepseek-coder:6.7b` | 16K context |
+| **Embeddings** | `nomic-embed-text` | RAG & codebase search |
+| **Custom** | User-defined | See Custom Models section |
+
+### Tab Autocomplete
+
+Starcoder2 is configured as the tab completion model with:
+- `debounceDelay: 300ms` — fires 300ms after you stop typing
+- `multilineCompletions: auto` — completes whole function bodies when confident
+- `prefixPercentage: 0.85` — 85% prefix context, 15% suffix
+
+### Context Providers
+
+In Continue chat, type `@` to use:
+
+| Provider | Usage | Description |
+|----------|-------|-------------|
+| `@codebase` | `@codebase how is auth handled?` | Searches full indexed project |
+| `@file` | `@file src/auth.ts` | Includes a specific file |
+| `@folder` | `@folder src/api` | Includes all files in a folder |
+| `@tree` | `@tree` | Project file structure (4 levels) |
+| `@diff` | `@diff` | Current git diff |
+| `@url` | `@url https://docs.example.com` | Scrapes external documentation |
+
+### Custom Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/review` | Security + bug + style review |
+| `/docstring` | Generate complete docstring |
+| `/migrate` | Refactor/migration plan |
+| `/debug` | Debug strategy + root cause |
+
+---
+
+## Custom AI Models
+
+Upload any `.gguf` model file and register it in Ollama.
+
+```bash
+chmod +x models/custom-model-upload.sh
+
+# General purpose model
+./models/custom-model-upload.sh ./my-model.gguf
+
+# Code-specialised
+./models/custom-model-upload.sh ./code-llm.gguf my-coder code
+
+# Chat model
+./models/custom-model-upload.sh ./chat-llm.gguf support-bot chat
+```
+
+### Templates
+
+| Template | System prompt | Temperature | Best for |
+|----------|--------------|-------------|---------|
+| `code` | Expert software engineer | 0.1 | Code gen, review |
+| `chat` | Helpful assistant | 0.7 | Q&A, support |
+| `general` | Knowledgeable assistant | 0.5 | Mixed tasks |
+
+After upload, the script prints the JSON snippet to add to `continue/config.json`.
+
+### List Installed Models
+
+```bash
+docker exec atomia-ollama ollama list
+```
+
+---
+
+## RAG — Code-Context Aware Indexing
+
+The `rag-index.sh` script chunks your entire project and loads it into Qdrant so AI completions have full context of your codebase.
+
+### Index a Project
+
+```bash
+chmod +x rag/rag-index.sh
+
+# Index /projects (default)
+./rag/rag-index.sh
+
+# Index a specific project
+./rag/rag-index.sh /projects/my-api my-api-collection
+```
+
+Or from inside Code Server's terminal:
+
+```bash
+rag-index                           # indexes /projects
+rag-index /projects/my-api myapi   # indexes specific path
+```
+
+### What Gets Indexed
+
+All source code and docs (excluding `node_modules`, `.git`, `dist`, `build`):
+
+`.ts .tsx .js .jsx .py .go .rs .java .sh .md .json .yaml .sql .graphql .html .css` and more.
+
+### Chunk Settings (`.env`)
+
+```bash
+RAG_CHUNK_SIZE=512      # tokens per chunk
+RAG_CHUNK_OVERLAP=64    # overlap between consecutive chunks
+RAG_EMBEDDING_MODEL=nomic-embed-text
+```
+
+### Use in Chat
+
+After indexing, reference your project in Continue:
+
+```
+@codebase where is the JWT validation logic?
+@codebase add error handling to the payment service
+```
+
+---
+
+## Remote Debugging
+
+Code Server exposes three debug ports on the host:
+
+| Port | Protocol | For |
+|------|----------|-----|
+| `9229` | Chrome DevTools (DAP) | Node.js / TypeScript |
+| `5678` | DAP | Python (debugpy) |
+| `2345` | DAP | Go (delve) |
+
+### VS Code Debug Configs
+
+`debug-templates/launch.json` is automatically seeded into `/projects/.vscode/launch.json` on first start. It includes ready-to-use configurations for:
+
+- **Node.js** — attach to running inspector / launch with debugger
+- **Python** — attach to debugpy / launch script
+- **Go** — attach to dlv / launch package
+- **Docker** — attach to Node running inside any container
+- **Chrome** — browser frontend debugging
+- **Compound** — Node.js + Chrome simultaneously
+
+### Node.js Example
+
+Start your app with the inspector enabled:
+
+```bash
+# In Code Server terminal
+node --inspect=0.0.0.0:9229 src/index.js
+```
+
+Then in the Debug panel, select **"Node.js: Attach (remote 9229)"** and press F5.
+
+### Python Example
+
+```python
+# Add to top of your script
+import debugpy
+debugpy.listen(("0.0.0.0", 5678))
+debugpy.wait_for_client()  # optional: block until VS Code attaches
+```
+
+Then select **"Python: Attach (remote 5678)"** and press F5.
+
+### Go Example
+
+```bash
+# In Code Server terminal
+dlv debug --headless --listen=:2345 --api-version=2 ./cmd/main.go
+```
+
+Then select **"Go: Attach (remote 2345)"** and press F5.
 
 ---
 
 ## Authentication (Authelia SSO)
-
-All services are protected by [Authelia](https://www.authelia.com/), an open-source SSO and MFA gateway.
 
 ### Default Users
 
@@ -44,73 +300,38 @@ All services are protected by [Authelia](https://www.authelia.com/), an open-sou
 | `admin` | `atomia-admin` | admins, developers |
 | `developer` | `developer123` | developers |
 
-> **Change these immediately.** See below for how.
+**Change these immediately:**
 
-### Change / Add Users
+```bash
+# Generate new hash
+docker run --rm authelia/authelia:latest \
+  authelia crypto hash generate argon2 --password 'YOUR_NEW_PASSWORD'
+```
 
-1. Generate a new password hash:
-   ```bash
-   docker run --rm authelia/authelia:latest \
-     authelia crypto hash generate argon2 --password 'YOUR_NEW_PASSWORD'
-   ```
-2. Edit `authelia/users_database.yml` and replace the `password:` field.
-3. Restart Authelia: `docker compose restart authelia`
+Edit `authelia/users_database.yml`, restart: `docker compose restart authelia`
 
-### Access Control Levels
+### Access Policies
 
-| Level | Applies To | Requires |
-|-------|-----------|---------|
-| `bypass` | Internal network | Nothing |
-| `one_factor` | Open WebUI, Code Server | Username + password |
+| Policy | Services | Auth Required |
+|--------|---------|--------------|
+| `bypass` | Internal network | None |
+| `one_factor` | Open WebUI, Code Server | Password |
 | `two_factor` | Grafana, Prometheus | Password + TOTP |
 
-Edit `authelia/configuration.yml` to adjust rules.
-
-### Generate Secrets
-
-```bash
-# In .env, replace the AUTHELIA_* values with these outputs:
-openssl rand -hex 32   # AUTHELIA_JWT_SECRET
-openssl rand -hex 32   # AUTHELIA_SESSION_SECRET
-openssl rand -hex 32   # AUTHELIA_STORAGE_KEY
-```
-
 ---
 
-## RAG — Retrieval-Augmented Generation
+## GPU Configuration
 
-Open WebUI uses [Qdrant](https://qdrant.tech/) as its persistent vector store. Uploaded documents and chat context are chunked, embedded (via `nomic-embed-text` on Ollama), and stored permanently.
-
-### Add a Knowledge Base
-
-1. Open http://localhost:8080 → **Settings → Knowledge**
-2. Click **New Knowledge Base**
-3. Upload documents (PDF, TXT, MD, DOCX, CSV)
-4. In chat, reference it with `@knowledge-base-name`
-
-### Chat History Persistence
-
-All conversations are stored in the Open WebUI SQLite database at `./data/openwebui/`. Semantic search across past chats is powered by Qdrant.
-
-### RAG Embedding Model
-
-The default model is `all-MiniLM-L6-v2` (sentence-transformers). To switch:
 ```bash
 # .env
-RAG_EMBEDDING_MODEL=nomic-embed-text
+NVIDIA_VISIBLE_DEVICES=all      # all GPUs; or "0,1" or "none" (CPU)
+OLLAMA_MAX_LOADED_MODELS=2      # reduce on <12GB VRAM
+OLLAMA_MEM_LIMIT=16G
 ```
-Then restart Open WebUI: `docker compose restart open-webui`.
 
----
-
-## GPU Configuration (Ollama)
-
-Ollama auto-detects NVIDIA GPUs via the NVIDIA Container Toolkit. CPU fallback is automatic when no GPU is present.
-
-### Enable GPU
+Install NVIDIA Container Toolkit:
 
 ```bash
-# Install NVIDIA Container Toolkit
 distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
 curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 curl -s -L "https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list" \
@@ -120,76 +341,12 @@ sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 ```
 
-### Tune Resources (`.env`)
-
-```bash
-NVIDIA_VISIBLE_DEVICES=all      # or 0,1 for specific GPUs; none for CPU-only
-OLLAMA_MAX_LOADED_MODELS=2      # reduce on low VRAM (e.g. 1 for 8GB cards)
-OLLAMA_MEM_LIMIT=16G            # container memory cap
-OLLAMA_CPU_LIMIT=4.0            # CPU cores
-```
-
-### Default Model Download Path
-
-All models are persisted to `./data/ollama` and survive container recreation.
-
-```bash
-# Pull additional models at any time
-docker exec atomia-ollama ollama pull llama3
-docker exec atomia-ollama ollama list
-```
-
 ---
 
-## AI Code Completion (Continue.dev)
+## Monitoring
 
-Continue.dev is pre-configured in `continue/config.json` with:
-
-| Feature | Model | Notes |
-|---------|-------|-------|
-| **Chat / Edit** | `deepseek-coder` | Full context, code review |
-| **Tab Autocomplete** | `deepseek-coder:1.3b` | Fast, low-latency ghost text |
-| **Embeddings / RAG** | `nomic-embed-text` | Codebase search |
-
-### Auto-install VS Code Extensions
-
-Set `EXTENSION_URLS` in `.env` (comma-separated `.vsix` URLs):
-```bash
-EXTENSION_URLS=https://github.com/owner/repo/releases/download/v1.0/ext.vsix
-```
-Extensions are installed on every container start via `code-server-init.sh`.
-
----
-
-## Monitoring (Prometheus + Grafana)
-
-### Access
-
-- **Grafana**: http://localhost:3001 — login with `admin` / `$GRAFANA_PASSWORD`
-- **Prometheus**: http://localhost:9090 — raw metrics & query interface
-
-Grafana is pre-configured with Prometheus as a data source (via `monitoring/grafana-datasources.yml`).
-
-### Recommended Dashboards
-
-Import these by ID from the Grafana marketplace (Dashboards → Import):
-
-| Dashboard | ID | What it shows |
-|-----------|-----|---------------|
-| **cAdvisor** | `14282` | Per-container CPU/RAM/disk |
-| **Node Exporter** | `1860` | Host system metrics |
-| **Docker overview** | `893` | Docker daemon stats |
-
-### Alerts
-
-`monitoring/alerts.yml` contains pre-built rules for:
-
-| Alert | Condition |
-|-------|-----------|
-| `ContainerDown` | Any `atomia-*` container absent for >1 min |
-| `HighCPUUsage` | Container CPU > 85% for 5 min |
-| `HighMemoryUsage` | Container memory > 90% of limit |
-| `DiskSpaceLow` | Root FS < 20% free |
+- **Grafana** (http://localhost:3001) — pre-wired to Prometheus, import dashboard ID `14282` for container metrics
+- **Alerts** — `monitoring/alerts.yml`: ContainerDown, HighCPU (>85%), HighMem (>90%), DiskLow (<20%)
 
 ---
 
@@ -197,115 +354,68 @@ Import these by ID from the Grafana marketplace (Dashboards → Import):
 
 ```bash
 chmod +x backup.sh
-./backup.sh
+./backup.sh                        # manual run
+BACKUP_PASSPHRASE=secret ./backup.sh   # with AES-256 encryption
 ```
 
-### What Gets Backed Up
+Add a cron job for daily 3 AM runs:
 
-| Volume | Contents |
-|--------|---------|
-| `data/ollama` | AI model weights |
-| `data/openwebui` | Chats, users, uploads |
-| `data/qdrant` | Vector embeddings |
-| `data/authelia` | User sessions, TOTP secrets |
-| `data/gitea` | Git repos, issues, wiki |
-| `data/grafana` | Dashboards, alerts |
-| `projects/` | Your source code |
-
-### Encryption
-
-```bash
-# .env
-BACKUP_PASSPHRASE=my_strong_passphrase
 ```
-When set, each `.tar.gz` is encrypted with AES-256-CBC via OpenSSL before saving.
-
-### Off-site Sync (rclone)
-
-```bash
-# .env — examples
-RCLONE_REMOTE=s3:my-bucket/atomia-backups
-# RCLONE_REMOTE=gdrive:Backups/Atomia
+0 3 * * * /path/to/atomia-cloud-suite/backup.sh
 ```
 
-Install rclone and configure a remote: https://rclone.org/install/
-
-### Automated Schedule (cron)
-
-```bash
-crontab -e
-# Add: daily at 03:00
-0 3 * * * /path/to/atomia-cloud-suite/backup.sh >> /var/log/atomia-backup.log 2>&1
-```
-
-### Retention
-
-Default: **7 days**. Change via `.env`:
-```bash
-RETENTION_DAYS=14
-```
+Off-site sync: set `RCLONE_REMOTE=s3:my-bucket` in `.env`.
 
 ---
 
-## CI/CD with Gitea Actions
-
-### Register a Runner
-
-1. Go to http://localhost:3000 → Site Administration → Actions → Runners
-2. Click **Register Runner** — copy the token
-3. Set in `.env`: `GITEA_RUNNER_TOKEN=<token>`
-4. Restart runner: `docker compose restart gitea-runner`
-
-### Workflow Examples
-
-Pre-built workflows in `.gitea/workflows/`:
-
-| File | Language | Steps |
-|------|----------|-------|
-| `ci-pipeline.yml` | Node.js | lint → test → build → Docker |
-| `python-ci.yml` | Python | flake8 → pytest → build |
-
----
-
-## HTTPS with Nginx Proxy Manager
-
-1. Open http://localhost:81 → login `admin@example.com` / `changeme`
-2. **Proxy Hosts → Add Proxy Host**
-3. Set domain, forward to the service container name + port
-4. **SSL tab** → Request Let's Encrypt certificate
-
-| Service | Forward to | Port |
-|---------|-----------|------|
-| Gitea | `gitea` | 3000 |
-| Open WebUI | `open-webui` | 8080 |
-| Code Server | `code-server` | 8080 |
-| Grafana | `grafana` | 3000 |
-| Authelia | `authelia` | 9091 |
-
----
-
-## Persistent Storage Layout
+## File Structure
 
 ```
-data/
-├── ollama/          # AI model weights (10–50 GB)
-├── openwebui/       # Chat history, users, uploads
-├── qdrant/          # Vector embeddings for RAG
-├── authelia/        # Sessions, TOTP secrets, SQLite
-├── code-server/     # IDE config, extensions
-├── code-server-ssh/ # SSH keys
-├── gitea/           # Git repos, database, attachments
-├── gitea-ssh/       # Git SSH keys
-├── gitea-runner/    # CI/CD runner data
-├── prometheus/      # Metrics TSDB (30-day retention)
-└── grafana/         # Dashboards, alert rules
-projects/            # Your source code repos
-backups/             # Dated archives (auto-rotated)
-```
-
-**Restore a backup:**
-```bash
-tar -xzf backups/2026-03-15_03-00-00/data_gitea.tar.gz
+.
+├── docker-compose.yml          Core orchestration
+├── setup.sh                    First-run installer
+├── backup.sh                   Volume backup + rotation
+├── code-server-init.sh         Code Server startup script
+├── ssh-setup.sh                SSH key helper
+│
+├── authelia/                   SSO configuration
+│   ├── configuration.yml
+│   └── users_database.yml
+│
+├── continue/
+│   └── config.json             AI models + context providers
+│
+├── deploy/                     Deployment pipelines
+│   ├── deploy.sh               Universal deploy script
+│   └── docker-compose.staging.yml
+│
+├── debug-templates/
+│   └── launch.json             VS Code debug configs (Node/Python/Go)
+│
+├── models/
+│   └── custom-model-upload.sh  Upload custom GGUF models
+│
+├── rag/
+│   └── rag-index.sh            Project RAG indexer → Qdrant
+│
+├── monitoring/
+│   ├── prometheus.yml
+│   ├── alerts.yml
+│   ├── grafana-datasources.yml
+│   └── grafana-dashboards.yml
+│
+├── .gitea/workflows/
+│   ├── auto-deploy.yml         Staging + production pipelines
+│   ├── ci-pipeline.yml         Node.js CI
+│   └── python-ci.yml           Python CI
+│
+└── data/                       All persistent volumes (git-ignored)
+    ├── ollama/                 AI model weights
+    ├── openwebui/              Chat history, users
+    ├── qdrant/                 Vector embeddings
+    ├── authelia/               Sessions, TOTP
+    ├── gitea/                  Repos, issues, wiki
+    └── grafana/                Dashboards
 ```
 
 ---
@@ -313,64 +423,33 @@ tar -xzf backups/2026-03-15_03-00-00/data_gitea.tar.gz
 ## Useful Commands
 
 ```bash
-# Start / stop everything
+# Services
 docker compose up -d
 docker compose down
+docker compose logs -f code-server
 
-# Live logs for a service
-docker compose logs -f ollama
-docker compose logs -f authelia
-
-# Pull latest images & recreate
-docker compose pull && docker compose up -d
-
-# List loaded AI models
+# AI Models
 docker exec atomia-ollama ollama list
+docker exec atomia-ollama ollama pull llama3.2
+./models/custom-model-upload.sh my-model.gguf my-model code
 
-# Add a new AI model
-docker exec atomia-ollama ollama pull llama3.1
+# RAG Index
+./rag/rag-index.sh /projects/my-app my-app
 
-# Manual backup
+# Deploy
+./deploy/deploy.sh staging http://localhost:3000/user/repo.git develop /projects/repo
+./deploy/deploy.sh production http://localhost:3000/user/repo.git main /projects/repo
+
+# Backup
 ./backup.sh
 
-# Regenerate Authelia password hash
+# Auth — regenerate password hash
 docker run --rm authelia/authelia:latest \
   authelia crypto hash generate argon2 --password 'NEW_PASSWORD'
-```
 
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                    ATOMIA CLOUD SUITE v4.0                       │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌────────────┐   ┌────────────┐   ┌────────────┐   ┌────────┐ │
-│  │   OLLAMA   │◄─►│ OPEN WEBUI │   │CODE SERVER │   │ GITEA  │ │
-│  │ (GPU/CPU)  │   │ + RAG Chat │   │+ SSH + Ext │   │+CI/CD  │ │
-│  └─────┬──────┘   └─────┬──────┘   └────────────┘   └───┬────┘ │
-│        │                │                               │      │
-│        ▼                ▼                               ▼      │
-│  ┌────────────┐   ┌────────────┐   ┌────────────────────────┐  │
-│  │   QDRANT   │   │  AUTHELIA  │   │    GITEA RUNNER (CI)   │  │
-│  │ (Vectors)  │   │ (SSO/MFA)  │   └────────────────────────┘  │
-│  └────────────┘   └─────┬──────┘                               │
-│                          │                                      │
-│  ┌───────────────────────▼──────────────────────────────────┐  │
-│  │              NGINX PROXY MANAGER (SSL + Routes)          │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  ┌────────────┐   ┌────────────┐   ┌────────────┐              │
-│  │ PROMETHEUS │──►│  GRAFANA   │   │  CADVISOR  │              │
-│  │ (Metrics)  │   │(Dashboards)│   │(Container) │              │
-│  └────────────┘   └────────────┘   └────────────┘              │
-│                                                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │          BIND-MOUNTED VOLUMES  ./data/...                │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+# Monitoring
+open http://localhost:3001   # Grafana
+open http://localhost:9090   # Prometheus
 ```
 
 ---

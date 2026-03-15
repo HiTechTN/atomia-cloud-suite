@@ -1,51 +1,61 @@
 {
   "models": [
     {
-      "title": "DeepSeek Coder — Ollama",
+      "title": "Qwen 2.5 Coder 7B — Primary",
       "provider": "ollama",
-      "model": "deepseek-coder",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 32768,
+      "maxTokens": 8192,
+      "temperature": 0.15,
+      "systemMessage": "You are an expert software engineer. When answering, always prefer the language/framework already used in the current project. Provide complete, runnable code. Highlight any security issues."
+    },
+    {
+      "title": "DeepSeek Coder 6.7B — Fallback",
+      "provider": "ollama",
+      "model": "deepseek-coder:6.7b",
       "apiBase": "http://ollama:11434",
       "contextLength": 16384,
       "maxTokens": 4096,
       "temperature": 0.2
     },
     {
-      "title": "CodeLlama — Ollama",
+      "title": "Llama 3.1 8B — General",
       "provider": "ollama",
-      "model": "codellama",
-      "apiBase": "http://ollama:11434",
-      "contextLength": 16384,
-      "maxTokens": 4096,
-      "temperature": 0.3
-    },
-    {
-      "title": "Llama 3 — General",
-      "provider": "ollama",
-      "model": "llama3",
+      "model": "llama3.1:8b",
       "apiBase": "http://ollama:11434",
       "contextLength": 8192,
       "maxTokens": 4096,
       "temperature": 0.7
     },
     {
-      "title": "Mistral — Fast",
+      "title": "Custom Model (user-uploaded)",
       "provider": "ollama",
-      "model": "mistral",
+      "model": "${CUSTOM_MODEL:-qwen2.5-coder:7b}",
       "apiBase": "http://ollama:11434",
-      "contextLength": 8192,
+      "contextLength": 16384,
       "maxTokens": 4096,
-      "temperature": 0.5
+      "temperature": 0.2
     }
   ],
 
   "tabAutocompleteModel": {
-    "title": "Tab Autocomplete — DeepSeek",
+    "title": "Starcoder2 3B — Tab Autocomplete",
     "provider": "ollama",
-    "model": "deepseek-coder:1.3b",
+    "model": "starcoder2:3b",
     "apiBase": "http://ollama:11434",
-    "contextLength": 2048,
+    "contextLength": 4096,
     "maxTokens": 256,
-    "temperature": 0.01
+    "temperature": 0.01,
+    "multilineCompletions": "auto"
+  },
+
+  "tabAutocompleteOptions": {
+    "maxPromptTokens": 1024,
+    "prefixPercentage": 0.85,
+    "maxSuffixPercentage": 0.15,
+    "debounceDelay": 300,
+    "multilineCompletions": "auto"
   },
 
   "embeddingsProvider": {
@@ -55,34 +65,61 @@
   },
 
   "contextProviders": [
-    { "name": "file",     "params": {} },
-    { "name": "folder",   "params": {} },
-    { "name": "codebase", "params": {} },
-    { "name": "docs",     "params": {} },
-    { "name": "tree",     "params": {} },
-    { "name": "grep",     "params": {} },
-    { "name": "url",      "params": {} },
-    { "name": "github",   "params": {} }
+    {
+      "name": "codebase",
+      "params": {
+        "nRetrieve": 25,
+        "nFinal": 5,
+        "useReranking": true
+      }
+    },
+    { "name": "file",   "params": {} },
+    { "name": "folder", "params": {} },
+    {
+      "name": "tree",
+      "params": {
+        "maxDepth": 4
+      }
+    },
+    { "name": "grep",   "params": {} },
+    { "name": "docs",   "params": {} },
+    { "name": "url",    "params": {} },
+    { "name": "github", "params": {} },
+    {
+      "name": "diff",
+      "params": {}
+    }
   ],
 
   "slashCommands": [
-    { "name": "edit",    "description": "Edit code in place" },
-    { "name": "comment", "description": "Write comments for selected code" },
-    { "name": "test",    "description": "Generate unit tests" },
-    { "name": "explain", "description": "Explain selected code" },
-    { "name": "review",  "description": "Review selected code for bugs & style" }
+    { "name": "edit",     "description": "Edit highlighted code in place" },
+    { "name": "comment",  "description": "Add docstrings / comments" },
+    { "name": "test",     "description": "Generate unit tests" },
+    { "name": "explain",  "description": "Explain selected code" },
+    { "name": "review",   "description": "Security + style review" },
+    { "name": "share",    "description": "Export conversation" }
   ],
 
   "customCommands": [
     {
       "name": "review",
-      "prompt": "{{{input}}}\n\nReview the above code. Check for:\n1. Bugs or logical errors\n2. Security vulnerabilities\n3. Performance issues\n4. Code style improvements\n\nBe concise and specific.",
-      "description": "Review selected code"
+      "description": "Full code review: bugs, security, perf",
+      "prompt": "Review the following code thoroughly:\n\n{{{input}}}\n\nCheck for:\n1. Logic bugs and edge cases\n2. Security vulnerabilities (injections, auth bypasses, data leaks)\n3. Performance bottlenecks\n4. Style and maintainability\n\nBe specific with line references. Suggest fixes."
     },
     {
       "name": "docstring",
-      "prompt": "{{{input}}}\n\nWrite a complete docstring for the above function. Include: summary, parameters, return type, and a usage example.",
-      "description": "Generate docstring"
+      "description": "Generate comprehensive docstring",
+      "prompt": "Write a complete docstring for this function:\n\n{{{input}}}\n\nInclude: summary, all parameters with types, return type, raises, and a usage example."
+    },
+    {
+      "name": "migrate",
+      "description": "Suggest migration / refactor plan",
+      "prompt": "Suggest a step-by-step migration plan to modernise this code:\n\n{{{input}}}\n\nConsider: language version upgrades, framework updates, breaking changes, and testing strategy."
+    },
+    {
+      "name": "debug",
+      "description": "Analyse and suggest debug strategy",
+      "prompt": "I'm debugging this code:\n\n{{{input}}}\n\nSuggest: likely root causes, how to add targeted logging, a minimal repro case, and the fix."
     }
   ],
 

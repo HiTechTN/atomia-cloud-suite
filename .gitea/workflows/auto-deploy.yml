@@ -1,0 +1,79 @@
+name: Auto Deploy
+
+on:
+  push:
+    branches:
+      - main          # → production
+      - staging       # → staging
+      - develop       # → staging
+  pull_request:
+    branches:
+      - main
+
+env:
+  DEPLOY_SCRIPT: ./deploy/deploy.sh
+
+jobs:
+  # ── Lint & Test ─────────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect runtime
+        id: runtime
+        run: |
+          if [ -f package.json ]; then echo "runtime=node" >> $GITHUB_OUTPUT
+          elif [ -f requirements.txt ]; then echo "runtime=python" >> $GITHUB_OUTPUT
+          elif [ -f go.mod ]; then echo "runtime=go" >> $GITHUB_OUTPUT
+          else echo "runtime=none" >> $GITHUB_OUTPUT; fi
+
+      - name: Node.js test
+        if: steps.runtime.outputs.runtime == 'node'
+        run: npm ci && npm test --if-present
+
+      - name: Python test
+        if: steps.runtime.outputs.runtime == 'python'
+        run: pip install -q -r requirements.txt && pytest --tb=short
+
+      - name: Go test
+        if: steps.runtime.outputs.runtime == 'go'
+        run: go test ./...
+
+  # ── Deploy to Staging ────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to staging
+        run: |
+          chmod +x $DEPLOY_SCRIPT
+          $DEPLOY_SCRIPT staging \
+            "${{ gitea.server_url }}/${{ gitea.repository }}.git" \
+            "${{ github.ref_name }}" \
+            "/projects/${{ gitea.repository_name }}"
+        env:
+          HEALTH_CHECK_URL: http://localhost:8082
+
+  # ── Deploy to Production ─────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to production
+        run: |
+          chmod +x $DEPLOY_SCRIPT
+          $DEPLOY_SCRIPT production \
+            "${{ gitea.server_url }}/${{ gitea.repository }}.git" \
+            "main" \
+            "/projects/${{ gitea.repository_name }}"
+        env:
+          HEALTH_CHECK_URL: http://localhost:8080

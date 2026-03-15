@@ -1,0 +1,16 @@
+# Staging overrides — lower resource limits, debug ports exposed
+services:
+  open-webui:
+    environment:
+      - WEBUI_NAME=Atomia Chat [STAGING]
+    ports:
+      - "8082:8080"    # Staging WebUI on 8082 so production stays on 8080
+
+  code-server:
+    ports:
+      - "8444:8080"    # Staging IDE on 8444
+      - "2224:22"
+
+  gitea:
+    ports:
+      - "3002:3000"    # Staging Git on 3002

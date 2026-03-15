@@ -1,0 +1,123 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+
+    // ── Node.js — attach to running process ────────────────────────────────
+    {
+      "name": "Node.js: Attach (remote 9229)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "0.0.0.0",
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": true,
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"]
+    },
+
+    // ── Node.js — launch with debugger ─────────────────────────────────────
+    {
+      "name": "Node.js: Launch",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/index.js",
+      "args": [],
+      "env": { "NODE_ENV": "development" },
+      "skipFiles": ["<node_internals>/**"],
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
+      "console": "integratedTerminal"
+    },
+
+    // ── Python — attach to debugpy ─────────────────────────────────────────
+    {
+      "name": "Python: Attach (remote 5678)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": {
+        "host": "0.0.0.0",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ]
+    },
+
+    // ── Python — launch script ─────────────────────────────────────────────
+    {
+      "name": "Python: Launch",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "console": "integratedTerminal",
+      "env": { "PYTHONPATH": "${workspaceFolder}" }
+    },
+
+    // ── Go — attach to dlv ────────────────────────────────────────────────
+    {
+      "name": "Go: Attach (remote 2345)",
+      "type": "go",
+      "request": "attach",
+      "mode": "remote",
+      "port": 2345,
+      "host": "0.0.0.0",
+      "apiVersion": 2,
+      "substitutePath": [
+        { "from": "${workspaceFolder}", "to": "/app" }
+      ]
+    },
+
+    // ── Go — launch ────────────────────────────────────────────────────────
+    {
+      "name": "Go: Launch",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}",
+      "env": { "GO_ENV": "development" },
+      "args": []
+    },
+
+    // ── Docker: Node inside container ──────────────────────────────────────
+    {
+      "name": "Docker: Node (attached)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "host.docker.internal",
+      "localRoot": "${workspaceFolder}",
+      "remoteRoot": "/app",
+      "skipFiles": ["<node_internals>/**"],
+      "restart": true
+    },
+
+    // ── Chrome / Browser debugging ────────────────────────────────────────
+    {
+      "name": "Browser: Chrome (localhost:3000)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${workspaceFolder}/src/*"
+      }
+    }
+
+  ],
+
+  // ── Compound — full-stack debug ─────────────────────────────────────────────
+  "compounds": [
+    {
+      "name": "Full-Stack Debug (Node + Chrome)",
+      "configurations": [
+        "Node.js: Attach (remote 9229)",
+        "Browser: Chrome (localhost:3000)"
+      ]
+    }
+  ]
+}

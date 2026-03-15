@@ -77,6 +77,10 @@ dirs=(
   authelia
   monitoring
   backups
+  deploy
+  models
+  rag
+  debug-templates
 )
 
 for d in "${dirs[@]}"; do
@@ -139,9 +143,9 @@ if [[ "$reply" =~ ^[Yy]$ ]] || [[ -z "$reply" ]]; then
     until curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; do sleep 2; done
 
     models=(
-      "deepseek-coder:1.3b"   # Tab autocomplete (small, fast)
-      "deepseek-coder"        # Main coding model
-      "codellama"             # Coding fallback
+      "qwen2.5-coder:7b"      # Primary coding model (best context awareness)
+      "starcoder2:3b"         # Tab autocomplete (fast, low latency)
+      "deepseek-coder:6.7b"   # Coding fallback
       "nomic-embed-text"      # Embeddings for RAG
     )
 
