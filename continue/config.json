@@ -1,144 +1,93 @@
 {
   "models": [
     {
-      "model": "codellama",
+      "title": "DeepSeek Coder — Ollama",
       "provider": "ollama",
-      "apiBase": "http://ollama:11434",
-      "contextLength": 16384,
-      "maxTokens": 4096,
-      "temperature": 0.3,
-      "title": "CodeLlama - Ollama"
-    },
-    {
       "model": "deepseek-coder",
-      "provider": "ollama",
       "apiBase": "http://ollama:11434",
       "contextLength": 16384,
       "maxTokens": 4096,
-      "temperature": 0.2,
-      "title": "DeepSeek Coder - Ollama"
+      "temperature": 0.2
     },
     {
+      "title": "CodeLlama — Ollama",
+      "provider": "ollama",
+      "model": "codellama",
+      "apiBase": "http://ollama:11434",
+      "contextLength": 16384,
+      "maxTokens": 4096,
+      "temperature": 0.3
+    },
+    {
+      "title": "Llama 3 — General",
+      "provider": "ollama",
       "model": "llama3",
-      "provider": "ollama",
       "apiBase": "http://ollama:11434",
       "contextLength": 8192,
       "maxTokens": 4096,
-      "temperature": 0.7,
-      "title": "Llama 3 - Ollama"
+      "temperature": 0.7
     },
     {
+      "title": "Mistral — Fast",
+      "provider": "ollama",
       "model": "mistral",
-      "provider": "ollama",
       "apiBase": "http://ollama:11434",
       "contextLength": 8192,
       "maxTokens": 4096,
-      "temperature": 0.5,
-      "title": "Mistral - Ollama"
-    },
-    {
-      "model": "phi3",
-      "provider": "ollama",
-      "apiBase": "http://ollama:11434",
-      "contextLength": 4096,
-      "maxTokens": 2048,
-      "temperature": 0.3,
-      "title": "Phi-3 - Ollama"
+      "temperature": 0.5
     }
   ],
-  "providerOverrides": {},
+
+  "tabAutocompleteModel": {
+    "title": "Tab Autocomplete — DeepSeek",
+    "provider": "ollama",
+    "model": "deepseek-coder:1.3b",
+    "apiBase": "http://ollama:11434",
+    "contextLength": 2048,
+    "maxTokens": 256,
+    "temperature": 0.01
+  },
+
   "embeddingsProvider": {
     "provider": "ollama",
     "model": "nomic-embed-text",
     "apiBase": "http://ollama:11434"
   },
+
+  "contextProviders": [
+    { "name": "file",     "params": {} },
+    { "name": "folder",   "params": {} },
+    { "name": "codebase", "params": {} },
+    { "name": "docs",     "params": {} },
+    { "name": "tree",     "params": {} },
+    { "name": "grep",     "params": {} },
+    { "name": "url",      "params": {} },
+    { "name": "github",   "params": {} }
+  ],
+
+  "slashCommands": [
+    { "name": "edit",    "description": "Edit code in place" },
+    { "name": "comment", "description": "Write comments for selected code" },
+    { "name": "test",    "description": "Generate unit tests" },
+    { "name": "explain", "description": "Explain selected code" },
+    { "name": "review",  "description": "Review selected code for bugs & style" }
+  ],
+
   "customCommands": [
     {
-      "name": "explain",
-      "prompt": "{{{input}}}\n\nExplain the above code in simple terms, focusing on what it does and how it works.",
-      "description": "Explain selected code"
-    },
-    {
       "name": "review",
-      "prompt": "{{{input}}}\n\nReview the above code and provide constructive feedback. Look for:\n1. Potential bugs or issues\n2. Code quality improvements\n3. Security concerns\n4. Performance optimizations",
+      "prompt": "{{{input}}}\n\nReview the above code. Check for:\n1. Bugs or logical errors\n2. Security vulnerabilities\n3. Performance issues\n4. Code style improvements\n\nBe concise and specific.",
       "description": "Review selected code"
     },
     {
-      "name": "test",
-      "prompt": "{{{input}}}\n\nGenerate comprehensive unit tests for the above code. Include edge cases and error handling tests.",
-      "description": "Generate unit tests"
+      "name": "docstring",
+      "prompt": "{{{input}}}\n\nWrite a complete docstring for the above function. Include: summary, parameters, return type, and a usage example.",
+      "description": "Generate docstring"
     }
   ],
-  "contextProviders": [
-    {
-      "name": "github",
-      "params": {}
-    },
-    {
-      "name": "grep",
-      "params": {}
-    },
-    {
-      "name": "tree",
-      "params": {}
-    },
-    {
-      "name": "file",
-      "params": {}
-    },
-    {
-      "name": "folder",
-      "params": {}
-    },
-    {
-      "name": "codebase",
-      "params": {}
-    },
-    {
-      "name": "docs",
-      "params": {}
-    },
-    {
-      "name": "url",
-      "params": {}
-    }
-  ],
-  "tabAutocompleteModel": {
-    "model": "codellama",
-    "provider": "ollama",
-    "apiBase": "http://ollama:11434",
-    "contextLength": 4096,
-    "maxTokens": 256,
-    "temperature": 0.1
-  },
-  "slashCommands": [
-    {
-      "name": "edit",
-      "description": "Edit code in place",
-      "params": []
-    },
-    {
-      "name": "chat",
-      "description": "Chat with Continue about your code",
-      "params": []
-    },
-    {
-      "name": "test",
-      "description": "Generate tests for highlighted code",
-      "params": []
-    },
-    {
-      "name": "explain",
-      "description": "Explain highlighted code",
-      "params": []
-    },
-    {
-      "name": "review",
-      "description": "Review highlighted code",
-      "params": []
-    }
-  ],
+
   "allowAnonymousTelemetry": false,
+
   "ui": {
     "codeBlockTheme": "github-dark",
     "fontSize": 14,

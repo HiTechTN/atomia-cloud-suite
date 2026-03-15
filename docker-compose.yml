@@ -1,10 +1,10 @@
 # Atomia Cloud Suite - Docker Compose Configuration
-# Self-hosted AI-powered development environment
-# Version: 3.1 - With RAG, Email Notifications, HTTPS
+# Version: 4.0 - Auth + RAG Persistence + GPU + Monitoring
 
 services:
+
   # ============================================
-  # OLLAMA - AI Backend (GPU-accelerated)
+  # OLLAMA - AI Backend (GPU-auto-detected)
   # ============================================
   ollama:
     image: ollama/ollama:latest
@@ -14,12 +14,16 @@ services:
       - "11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
+      # Default model storage path (bind-mounted below)
       - OLLAMA_MODELS=/models
       - OLLAMA_KEEP_ALIVE=24h
-      - NVIDIA_VISIBLE_DEVICES=all
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      # GPU passthrough — works even when no GPU present (CPU fallback)
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     volumes:
       - ollama-models:/models:rw
+    # GPU reservation is attempted; Docker ignores it gracefully when no GPU
     deploy:
       resources:
         reservations:
@@ -28,18 +32,18 @@ services:
               count: all
               capabilities: [gpu]
         limits:
-          memory: 16G
-          cpus: '4.0'
+          memory: ${OLLAMA_MEM_LIMIT:-16G}
+          cpus: '${OLLAMA_CPU_LIMIT:-4.0}'
     networks:
       - atomia-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 5
 
   # ============================================
-  # QDRANT - Vector Database for RAG
+  # QDRANT - Vector Store for RAG + Chat History
   # ============================================
   qdrant:
     image: qdrant/qdrant:latest
@@ -49,7 +53,7 @@ services:
       - "6333:6333"
       - "6334:6334"
     environment:
-      - QDRANT_STORAGE=/qdrant/storage
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
     volumes:
       - qdrant-data:/qdrant/storage:rw
     deploy:
@@ -66,7 +70,7 @@ services:
       retries: 3
 
   # ============================================
-  # OPEN WEBUI - Chat with RAG
+  # OPEN WEBUI - Chat + RAG + Persistent History
   # ============================================
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
@@ -76,16 +80,20 @@ services:
       - "8080:8080"
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change_this_secure_key_in_production}
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-change_this_secure_key_32chars_min}
       - WEBUI_NAME=Atomia Chat
-      - WEBUI_AUTH_SECRET=${WEBUI_AUTH_SECRET:-}
-      # RAG Configuration
-      - ENABLE_RAG_WEB_SEARCH=false
-      - RAG_EMBEDDING_MODEL=all-MiniLM-L6-v2
-      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=true
+      # Auth: require login for all chat access
+      - WEBUI_AUTH=true
+      - DEFAULT_USER_ROLE=${OPENWEBUI_DEFAULT_ROLE:-user}
+      # RAG — backed by Qdrant vector store
+      - ENABLE_RAG=true
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_API_KEY=${QDRANT_API_KEY:-}
-      - ENABLE_RAG=true
+      - RAG_EMBEDDING_MODEL=${RAG_EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE=true
+      # Chat history persistence (stored in the mounted volume + Qdrant)
+      - ENABLE_CHAT_HISTORY=true
+      - ENABLE_MESSAGE_RATING=true
     volumes:
       - openwebui-data:/app/backend/data:rw
     depends_on:
@@ -104,7 +112,33 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ============================================
-  # VS CODE SERVER with SSH & Auto-Install
+  # AUTHELIA - SSO & MFA Authentication Gateway
+  # ============================================
+  authelia:
+    image: authelia/authelia:latest
+    container_name: atomia-authelia
+    restart: unless-stopped
+    ports:
+      - "9091:9091"
+    environment:
+      - TZ=Europe/Paris
+      - AUTHELIA_JWT_SECRET=${AUTHELIA_JWT_SECRET:-change_this_jwt_secret_min32chars}
+      - AUTHELIA_SESSION_SECRET=${AUTHELIA_SESSION_SECRET:-change_this_session_secret_32c}
+      - AUTHELIA_STORAGE_ENCRYPTION_KEY=${AUTHELIA_STORAGE_KEY:-change_this_storage_key_32chars}
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users_database.yml:/config/users_database.yml:rw
+      - authelia-data:/var/lib/authelia:rw
+    networks:
+      - atomia-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9091/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ============================================
+  # VS CODE SERVER - SSH + Auto-Install Extensions
   # ============================================
   code-server:
     image: codercom/code-server:latest
@@ -112,15 +146,13 @@ services:
     restart: unless-stopped
     ports:
       - "8443:8080"
-      - "2222:22"
+      - "2223:22"
     environment:
       - PASSWORD=${CODER_PASSWORD:-change_this_password}
       - SUDO_PASSWORD=${CODER_PASSWORD:-change_this_password}
       - TZ=Europe/Paris
       - CEREBRO_ENABLED=false
       - GIT_EDITOR=/usr/bin/nano
-      - SSH_PORT=22
-      - SSH_USER=coder
       - EXTENSION_URLS=${EXTENSION_URLS:-}
     volumes:
       - code-server-config:/home/coder:rw
@@ -138,7 +170,7 @@ services:
       - atomia-network
 
   # ============================================
-  # GITEA - Self-hosted Git with Auth, Email, CI/CD
+  # GITEA - Self-hosted Git + Auth + Email + CI/CD
   # ============================================
   gitea:
     image: gitea/gitea:latest
@@ -157,27 +189,19 @@ services:
       - GITEA__server__DISABLE_SSH=false
       - GITEA__security__INSTALL_LOCK=true
       - GITEA__database__DB_TYPE=sqlite3
-      # Authentication Settings
       - GITEA__service__REGISTER_EMAIL_CONFIRM=false
       - GITEA__service__ENABLE_NOTIFY_MAIL=${GITEA_ENABLE_MAIL:-false}
       - GITEA__service__DISABLE_REGISTRATION=${GITEA_DISABLE_REGISTRATION:-false}
       - GITEA__service__REQUIRE_SIGNIN_VIEW=${GITEA_REQUIRE_SIGNIN:-false}
-      - GITEA__service__ALLOW_ONLY_EXTERNAL_REGISTRATION=${GITEA_ALLOW_EXTERNAL_AUTH:-false}
       - GITEA__service__ENABLE_CAPTCHA=${GITEA_ENABLE_CAPTCHA:-false}
-      - GITEA__server__DEFAULT_KEEP_EMAIL_PRIVATE=${GITEA_KEEP_EMAIL_PRIVATE:-false}
       - GITEA__server__DEFAULT_ALLOW_CREATE_ORGANIZATION=true
       - GITEA__server__DEFAULT_ENABLE_TIMETRACKING=true
-      - GITEA__openid__ENABLE_OPENID_SIGNIN=true
-      - GITEA__openid__ENABLE_OPENID_SIGNUP=true
-      # Password Settings
       - GITEA__security__PASSWORD_COMPLEXITY=off
       - GITEA__security__MIN_PASSWORD_LENGTH=8
       - GITEA__security__PASSWORD_HASH_ALGO=pbkdf2
-      # Session & Cookie
       - GITEA__session__PROVIDER=file
       - GITEA__session__COOKIE_SECURE=false
       - GITEA__session__COOKIE_NAME=atomia_gitea
-      # Email Configuration (SMTP)
       - GITEA__mailer__ENABLED=${MAIL_ENABLED:-false}
       - GITEA__mailer__HOST=${MAIL_HOST:-}
       - GITEA__mailer__PORT=${MAIL_PORT:-587}
@@ -185,7 +209,6 @@ services:
       - GITEA__mailer__USER=${MAIL_USER:-}
       - GITEA__mailer__PASSWD=${MAIL_PASSWORD:-}
       - GITEA__mailer__SKIP_VERIFY=${MAIL_SKIP_VERIFY:-true}
-      # CI/CD
       - GITEA__actions__ENABLED=true
       - GITEA__actions__DEFAULT_ACTIONS_URL=https://gitea.com/actions
     volumes:
@@ -193,7 +216,7 @@ services:
       - gitea-ssh:/data/git/.ssh:rw
       - /etc/localtime:/etc/localtime:ro
     depends_on:
-      - code-server
+      - authelia
     deploy:
       resources:
         limits:
@@ -205,7 +228,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   # ============================================
-  # GITEA RUNNER - CI/CD Automation
+  # GITEA RUNNER - CI/CD
   # ============================================
   gitea-runner:
     image: gitea/act_runner:latest
@@ -215,7 +238,7 @@ services:
       - GITEA_INSTANCE_URL=http://gitea:3000
       - GITEA_RUNNER_REGISTRATION_TOKEN=${GITEA_RUNNER_TOKEN:-}
       - GITEA_RUNNER_NAME=atomia-runner
-      - GITEA_RUNNER_LABELS=ubuntu-latest:hosted,ubuntu-22.04:hosted,ubuntu-20.04:hosted
+      - GITEA_RUNNER_LABELS=ubuntu-latest:hosted,ubuntu-22.04:hosted
       - GITEA_RUNNER_CAPACITY=2
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
@@ -232,7 +255,7 @@ services:
       - atomia-network
 
   # ============================================
-  # NGINX PROXY MANAGER - Reverse Proxy with SSL
+  # NGINX PROXY MANAGER - Reverse Proxy + SSL
   # ============================================
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
@@ -248,6 +271,8 @@ services:
       - nginx-proxy-data:/data:rw
       - nginx-proxy-letsencrypt:/etc/letsencrypt:rw
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - authelia
     deploy:
       resources:
         limits:
@@ -257,7 +282,7 @@ services:
       - atomia-network
 
   # ============================================
-  # MONITORING - Prometheus (Metrics Storage)
+  # PROMETHEUS - Metrics scraper
   # ============================================
   prometheus:
     image: prom/prometheus:latest
@@ -267,12 +292,13 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus:rw
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
     deploy:
       resources:
         limits:
@@ -282,7 +308,7 @@ services:
       - atomia-network
 
   # ============================================
-  # MONITORING - cAdvisor (Container Metrics)
+  # CADVISOR - Container metrics exporter
   # ============================================
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
@@ -305,7 +331,7 @@ services:
       - atomia-network
 
   # ============================================
-  # MONITORING - Grafana (Visualization)
+  # GRAFANA - Dashboard & Alerting
   # ============================================
   grafana:
     image: grafana/grafana:latest
@@ -316,8 +342,12 @@ services:
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
     volumes:
       - grafana-data:/var/lib/grafana:rw
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ./monitoring/grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml:ro
     depends_on:
       - prometheus
     deploy:
@@ -337,7 +367,7 @@ networks:
     name: atomia-network
 
 # ============================================
-# PERSISTENT VOLUMES
+# PERSISTENT VOLUMES — all bind-mounted locally
 # ============================================
 volumes:
   ollama-models:
@@ -363,6 +393,14 @@ volumes:
       type: none
       o: bind
       device: ${OPENWEBUI_DATA_PATH:-./data/openwebui}
+
+  authelia-data:
+    name: atomia-authelia-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${AUTHELIA_DATA_PATH:-./data/authelia}
 
   code-server-config:
     name: atomia-codeserver-config

@@ -1,52 +1,124 @@
 #!/bin/bash
 
 # =============================================================================
-# ATOMIA CLOUD SUITE - Backup Script
-# Automated daily backups for all persistent data volumes
+# ATOMIA CLOUD SUITE — Backup Script v2.0
+# Daily encrypted backup of all persistent volumes with rotation
 # =============================================================================
 
-set -e
+set -euo pipefail
 
-# Configuration
-BACKUP_DIR="./backups"
+# ── Configuration ─────────────────────────────────────────────────────────────
+BACKUP_ROOT="${BACKUP_ROOT:-./backups}"
 DATE=$(date +%Y-%m-%d_%H-%M-%S)
-BACKUP_PATH="$BACKUP_DIR/$DATE"
-RETENTION_DAYS=7
+BACKUP_DIR="$BACKUP_ROOT/$DATE"
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
+COMPRESS_LEVEL="${COMPRESS_LEVEL:-6}"   # 1 (fast) – 9 (best)
+LOG_FILE="$BACKUP_ROOT/backup.log"
 
-# Create backup directory
-mkdir -p "$BACKUP_PATH"
+# Optional encryption — set BACKUP_PASSPHRASE in env for AES-256 encryption
+ENCRYPT="${BACKUP_PASSPHRASE:+yes}"
 
-echo "Starting Atomia Cloud Suite backup..."
-echo "Date: $DATE"
+# Optional off-site — set RCLONE_REMOTE to e.g. "s3:my-atomia-backups"
+RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 
-# List of directories to backup
-DATA_DIRS=("data" "projects" "continue" "monitoring")
+# Directories to back up (relative to project root)
+TARGETS=(
+  "data/ollama"
+  "data/openwebui"
+  "data/code-server"
+  "data/gitea"
+  "data/gitea-ssh"
+  "data/qdrant"
+  "data/authelia"
+  "data/prometheus"
+  "data/grafana"
+  "projects"
+  "continue"
+  "authelia"
+  "monitoring"
+)
 
-# Pause containers for consistent backup (optional, comment out for hot backup)
-# echo "Pausing containers..."
-# docker compose pause
+# ── Colours ───────────────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
-for dir in "${DATA_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        echo "Backing up $dir..."
-        tar -czf "$BACKUP_PATH/${dir}.tar.gz" "$dir"
+log() { echo -e "${BLUE}[$(date +%T)]${NC} $*" | tee -a "$LOG_FILE"; }
+ok()  { echo -e "${GREEN}[$(date +%T)] ✓${NC} $*" | tee -a "$LOG_FILE"; }
+warn(){ echo -e "${YELLOW}[$(date +%T)] ⚠${NC} $*" | tee -a "$LOG_FILE"; }
+err() { echo -e "${RED}[$(date +%T)] ✗${NC} $*" | tee -a "$LOG_FILE"; }
+
+# ── Start ─────────────────────────────────────────────────────────────────────
+mkdir -p "$BACKUP_DIR"
+log "═══════════════════════════════════════════════"
+log " ATOMIA BACKUP — $DATE"
+log "═══════════════════════════════════════════════"
+
+TOTAL=0; FAILED=0
+
+for target in "${TARGETS[@]}"; do
+  if [ ! -d "$target" ]; then
+    warn "Skipping '$target' (directory not found)"
+    continue
+  fi
+
+  name=$(echo "$target" | tr '/' '_')
+  archive="$BACKUP_DIR/${name}.tar.gz"
+
+  log "Backing up '$target'..."
+
+  if tar -czf "$archive" --warning=no-file-changed "$target" 2>/dev/null; then
+    size=$(du -sh "$archive" | cut -f1)
+
+    # Optional encryption with openssl
+    if [ -n "$ENCRYPT" ]; then
+      openssl enc -aes-256-cbc -salt -pbkdf2 \
+        -pass env:BACKUP_PASSPHRASE \
+        -in "$archive" -out "${archive}.enc" \
+        && rm "$archive" && archive="${archive}.enc"
     fi
+
+    ok "'$target' → $(basename "$archive") ($size)"
+    TOTAL=$((TOTAL+1))
+  else
+    err "Failed to archive '$target'"
+    FAILED=$((FAILED+1))
+  fi
 done
 
-# Resume containers
-# echo "Resuming containers..."
-# docker compose unpause
+# ── Write manifest ─────────────────────────────────────────────────────────────
+MANIFEST="$BACKUP_DIR/MANIFEST.txt"
+{
+  echo "Atomia Cloud Suite Backup"
+  echo "Date: $DATE"
+  echo "Encrypted: ${ENCRYPT:-no}"
+  echo ""
+  ls -lh "$BACKUP_DIR"
+} > "$MANIFEST"
 
-# Clean old backups
-echo "Cleaning backups older than $RETENTION_DAYS days..."
-find "$BACKUP_DIR" -type d -mtime +$RETENTION_DAYS -exec rm -rf {} +
+# ── Rotation — remove old backups ──────────────────────────────────────────────
+log "Removing backups older than $RETENTION_DAYS days..."
+find "$BACKUP_ROOT" -mindepth 1 -maxdepth 1 -type d -mtime +"$RETENTION_DAYS" \
+  | while read -r old; do
+      warn "Deleting old backup: $(basename "$old")"
+      rm -rf "$old"
+    done
 
-echo "Backup completed successfully!"
-echo "Location: $BACKUP_PATH"
+# ── Off-site sync (optional rclone) ───────────────────────────────────────────
+if [ -n "$RCLONE_REMOTE" ]; then
+  log "Syncing to off-site: $RCLONE_REMOTE ..."
+  if command -v rclone &>/dev/null; then
+    rclone sync "$BACKUP_ROOT" "$RCLONE_REMOTE" --progress \
+      && ok "Off-site sync complete" \
+      || warn "Off-site sync failed (backups still local)"
+  else
+    warn "rclone not installed — skipping off-site sync"
+  fi
+fi
 
-# =============================================================================
-# OFF-SITE STORAGE (Optional)
-# Uncomment and configure for secure off-site storage
-# =============================================================================
-# Example: rclone sync "$BACKUP_DIR" remote:atomia-backups
-# Example: aws s3 sync "$BACKUP_DIR" s3://my-atomia-backups
+# ── Summary ───────────────────────────────────────────────────────────────────
+echo ""
+log "═══════════════════════════════════════════════"
+log " SUMMARY: $TOTAL archived, $FAILED failed"
+log " Location: $BACKUP_DIR"
+log "═══════════════════════════════════════════════"
+
+[ "$FAILED" -eq 0 ] && exit 0 || exit 1

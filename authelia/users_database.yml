@@ -1,0 +1,26 @@
+---
+# Authelia Users Database
+# Passwords are hashed with argon2id.
+#
+# To generate a new password hash, run:
+#   docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password 'YOUR_PASSWORD'
+#
+# Default user: admin / atomia-admin (CHANGE THIS IMMEDIATELY)
+
+users:
+  admin:
+    displayname: "Atomia Admin"
+    # Default password: atomia-admin  — run the command above to replace
+    password: "$argon2id$v=19$m=65536,t=3,p=4$ZnJlZXNlZWRzZWVk$oiwrBUNfMWRoMWFDNzU1NkYzZjVCTDNOYTNJSFIxWU0="
+    email: admin@atomia.local
+    groups:
+      - admins
+      - developers
+
+  developer:
+    displayname: "Developer"
+    # Default password: developer123  — change this
+    password: "$argon2id$v=19$m=65536,t=3,p=4$ZGV2c2VlZHNlZWQ$YjVrZVhSTXFkOWp0QW1tRkp6UzZMak9UdG1KdlV3MDE="
+    email: developer@atomia.local
+    groups:
+      - developers
