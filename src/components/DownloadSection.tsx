@@ -57,6 +57,18 @@ curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/se
     note: 'Enable WSL2: wsl --install -d Ubuntu in PowerShell as Administrator.',
   },
   {
+    id: 'zimaos',
+    label: 'ZimaOS / CasaOS',
+    icon: '🧊',
+    badge: 'NAS / Home Server',
+    badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    requirements: ['ZimaCube, ZimaBoard or Any x86 NAS', 'ZimaOS 1.1+ or CasaOS installed', 'Storage: 100GB+ recommended', 'Admin access to WebUI'],
+    installCmd: `curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/setup.sh | bash`,
+    downloadLabel: 'Download Compose YAML',
+    downloadUrl: `${GITHUB}/blob/main/docker-compose.yml`,
+    note: 'You can also install by clicking "Custom Install" in the App Store and pasting the Docker Compose content.',
+  },
+  {
     id: 'docker',
     label: 'Docker Only',
     icon: '🐳',

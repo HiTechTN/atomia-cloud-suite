@@ -170,6 +170,43 @@ sudo service docker restart`,
       },
     ],
   },
+  {
+    id: 'zimaos',
+    label: '🧊 ZimaOS / CasaOS',
+    steps: [
+      {
+        n: 1,
+        title: 'Open Web Terminal',
+        desc: 'Log in to your ZimaOS or CasaOS dashboard and open the Terminal / SSH.',
+        code: `ssh admin@zimaos.local
+# Or use the built-in terminal in the dashboard`,
+      },
+      {
+        n: 2,
+        title: 'Run One-Command Setup',
+        desc: 'Run the Atomia setup script. It will automatically detect your NAS architecture and install everything.',
+        code: `curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/setup.sh | bash`,
+      },
+      {
+        n: 3,
+        title: 'Alternative: Custom App Install',
+        desc: 'If you prefer the GUI, go to the App Store → Custom Install and paste the Docker Compose file.',
+        code: `# 1. Go to App Store -> Custom Install
+# 2. Select "Import"
+# 3. Paste content from:
+https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/docker-compose.yml`,
+        lang: 'text',
+      },
+      {
+        n: 4,
+        title: 'Configure External Access',
+        desc: 'If you want to access your IDE from outside your home network, configure the Nginx Proxy Manager included.',
+        code: `# Open NPM: http://your-nas-ip:81
+# Default login: admin@example.com / changeme`,
+        lang: 'text',
+      },
+    ],
+  },
 ]
 
 export default function InstallSteps() {
