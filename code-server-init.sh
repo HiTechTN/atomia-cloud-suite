@@ -65,6 +65,27 @@ git config --global user.email "$GIT_EMAIL"
 git config --global core.editor "nano"
 git config --global init.defaultBranch "main"
 git config --global url."ssh://git@atomia-git/".insteadOf "${GITEA_URL}/"
+
+# GitHub integration helpers
+if [ -n "${GITHUB_PAT:-}" ]; then
+    git config --global url."https://${GITHUB_PAT}@github.com/".insteadOf "https://github.com/"
+    ok "GitHub PAT helper configured"
+fi
+
+if [ ! -f ~/.ssh/id_github ] && [ -n "${GITHUB_SSH_KEY:-}" ]; then
+    echo "$GITHUB_SSH_KEY" | base64 -d > ~/.ssh/id_github
+    chmod 600 ~/.ssh/id_github
+    grep -q "Host github.com" ~/.ssh/config 2>/dev/null || cat >> ~/.ssh/config <<EOF
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_github
+    StrictHostKeyChecking no
+EOF
+    ok "GitHub SSH key injected"
+fi
+
 ok "Git global config set"
 
 # ── 4. Install extensions from remote URLs ────────────────────────────────────
@@ -105,9 +126,11 @@ fi
 # ── 7. RAG index helper alias ─────────────────────────────────────────────────
 grep -q "rag-index" ~/.bashrc 2>/dev/null || cat >> ~/.bashrc <<'EOF'
 
-# Atomia RAG index helper
+# Atomia Helper Aliases
 alias rag-index='bash /extension/rag/rag-index.sh'
 alias upload-model='bash /extension/models/custom-model-upload.sh'
+alias github-sync='bash /extension/scripts/github-sync.sh'
+alias manage-users='bash /extension/scripts/manage-users.sh'
 EOF
 
 ok "Atomia Code Server ready"

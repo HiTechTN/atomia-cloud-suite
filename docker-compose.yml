@@ -158,6 +158,9 @@ services:
       - CEREBRO_ENABLED=false
       - GIT_EDITOR=/usr/bin/nano
       - EXTENSION_URLS=${EXTENSION_URLS:-}
+      # GitHub Integration
+      - GITHUB_PAT=${GITHUB_PAT:-}
+      - GITHUB_SSH_KEY=${GITHUB_SSH_KEY:-}
       # Gitea integration
       - GITEA_DOMAIN=${GITEA_DOMAIN:-localhost}
       - GITEA_SSH_PORT=${GITEA_SSH_PORT:-2222}
@@ -176,6 +179,7 @@ services:
       - ./code-server-init.sh:/usr/local/bin/init.sh:ro
       - ./rag/rag-index.sh:/extension/rag/rag-index.sh:ro
       - ./models/custom-model-upload.sh:/extension/models/custom-model-upload.sh:ro
+      - ./scripts:/extension/scripts:ro
       - ./debug-templates:/extension/debug-templates:ro
       - ./deploy:/extension/deploy:ro
       - code-server-ssh:/home/coder/.ssh:rw

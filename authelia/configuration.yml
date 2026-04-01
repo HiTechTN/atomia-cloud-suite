@@ -63,22 +63,29 @@ access_control:
         - "^/api/.*"
       policy: bypass
 
-    # Monitoring — admin only
+    # Multi-user isolation rules
+    # Admins can access everything
     - domain: localhost
-      resources:
-        - "^/grafana.*"
-        - "^/prometheus.*"
       subject: "group:admins"
       policy: two_factor
 
-    # Open WebUI — any authenticated user
+    # Developers can access common tools
     - domain: localhost
       resources:
         - "^/chat.*"
-        - "^/.*"
+        - "^/gitea.*"
+      subject: "group:developers"
       policy: one_factor
 
-    # Allow all local services to bypass (internal network)
+    # Isolated workspaces
+    # Ensure users can ONLY access paths starting with their own username
+    - domain: localhost
+      resources:
+        - "^/u/([^/]+)/.*"
+      subject: "user:$1"
+      policy: one_factor
+
+    # Default policy for any other internal services
     - domain: "*.atomia.local"
       networks:
         - 172.28.0.0/16

@@ -109,6 +109,18 @@ git clone ssh://git@atomia-git/your-username/your-repo
 git clone http://localhost:3000/your-username/your-repo
 ```
 
+### GitHub Integration
+
+You can integrate external GitHub repositories by providing a Personal Access Token (PAT) or a private SSH key in your `.env` file.
+
+- `GITHUB_PAT`: Automatically configures `git` to use this token for all `github.com` HTTPS requests.
+- `GITHUB_SSH_KEY`: Base64 encoded private key injected into `~/.ssh/id_github` with auto-configured SSH alias.
+
+Use the `github-sync` alias in the terminal to easily mirror GitHub repos to your Gitea instance:
+```bash
+github-sync https://github.com/user/repo.git my-repo
+```
+
 ---
 
 ## Advanced AI Code Completion
@@ -151,6 +163,11 @@ In Continue chat, type `@` to use:
 | `/docstring` | Generate complete docstring |
 | `/migrate` | Refactor/migration plan |
 | `/debug` | Debug strategy + root cause |
+| `/refactor` | Intelligent code refactoring |
+| `/test` | Automated unit test generation |
+| `/perf` | Real-time performance analysis |
+| `/optimize` | Optimize code for maximum efficiency |
+| `/fix` | Identify and fix bugs in selected code |
 
 ---
 
@@ -315,8 +332,29 @@ Edit `authelia/users_database.yml`, restart: `docker compose restart authelia`
 | Policy | Services | Auth Required |
 |--------|---------|--------------|
 | `bypass` | Internal network | None |
-| `one_factor` | Open WebUI, Code Server | Password |
-| `two_factor` | Grafana, Prometheus | Password + TOTP |
+| `one_factor` | Open WebUI, Code Server, User Workspaces | Password |
+| `two_factor` | Grafana, Prometheus, Admin Actions | Password + TOTP |
+
+### Multi-User Isolation
+
+Atomia supports isolated environments for multiple users via Authelia's RBAC and a dedicated user management script.
+
+#### Manage Users & Workspaces
+
+The `manage-users` tool (available in the admin terminal) allows provisioning new isolated development environments:
+
+```bash
+# List all users
+manage-users list
+
+# Add a new user with an isolated workspace
+manage-users add alice alice_password GITHUB_PAT_OPTIONAL
+
+# Access the user's workspace
+# By default, workspaces are assigned incremental ports starting at 8444
+```
+
+Isolated workspaces are stored in `./data/workspaces/<username>` and are only accessible to the assigned user via Authelia authorization.
 
 ---
 

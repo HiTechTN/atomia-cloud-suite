@@ -94,17 +94,41 @@
   "slashCommands": [
     { "name": "edit",     "description": "Edit highlighted code in place" },
     { "name": "comment",  "description": "Add docstrings / comments" },
-    { "name": "test",     "description": "Generate unit tests" },
+    { "name": "test",     "description": "Generate comprehensive unit tests" },
     { "name": "explain",  "description": "Explain selected code" },
     { "name": "review",   "description": "Security + style review" },
+    { "name": "refactor", "description": "Intelligent code refactoring" },
+    { "name": "perf",     "description": "Real-time performance analysis" },
+    { "name": "fix",      "description": "Suggest a fix for the selected code" },
+    { "name": "optimize", "description": "Optimize code for speed and memory" },
     { "name": "share",    "description": "Export conversation" }
   ],
 
   "customCommands": [
     {
-      "name": "review",
-      "description": "Full code review: bugs, security, perf",
-      "prompt": "Review the following code thoroughly:\n\n{{{input}}}\n\nCheck for:\n1. Logic bugs and edge cases\n2. Security vulnerabilities (injections, auth bypasses, data leaks)\n3. Performance bottlenecks\n4. Style and maintainability\n\nBe specific with line references. Suggest fixes."
+      "name": "refactor",
+      "description": "Refactor code for readability and efficiency",
+      "prompt": "Refactor the following code to improve readability, efficiency, and maintainability while preserving its original functionality. Use modern language features and design patterns where appropriate:\n\n{{{input}}}"
+    },
+    {
+      "name": "test",
+      "description": "Generate unit tests with edge cases",
+      "prompt": "Generate a comprehensive set of unit tests for this code using the project's standard testing framework. Include:\n1. Positive test cases\n2. Negative/error cases\n3. Edge cases (empty inputs, nulls, limits)\n4. Mock dependencies where necessary\n\nCode:\n{{{input}}}"
+    },
+    {
+      "name": "perf",
+      "description": "Analyze performance and suggest optimizations",
+      "prompt": "Analyze the performance of the following code. Identify potential bottlenecks, Big O complexity (time and space), and suggest specific optimizations to improve execution speed or memory usage. Provide benchmarks if possible:\n\n{{{input}}}"
+    },
+    {
+      "name": "optimize",
+      "description": "Optimize code for maximum efficiency",
+      "prompt": "Optimize this code for maximum efficiency (speed and memory). If it is already optimal, explain why. If not, provide the optimized version and explain the improvements made:\n\n{{{input}}}"
+    },
+    {
+      "name": "fix",
+      "description": "Fix bugs in the selected code",
+      "prompt": "Identify and fix any bugs or potential issues in the following code. Explain what was wrong and how the fix addresses the problem:\n\n{{{input}}}"
     },
     {
       "name": "docstring",
