@@ -69,6 +69,18 @@ curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/se
     note: 'You can also install by clicking "Custom Install" in the App Store and pasting the Docker Compose content.',
   },
   {
+    id: 'glfos',
+    label: 'GLF-OS / NixOS',
+    icon: '❄️',
+    badge: 'Declarative OS',
+    badgeColor: 'bg-blue-400/20 text-blue-300 border-blue-400/30',
+    requirements: ['GLF-OS or NixOS stable/unstable', 'Docker or Podman enabled', 'Nix Flakes enabled', 'NVIDIA Container Toolkit (for GPU)'],
+    installCmd: `nix run github:HiTechTN/atomia-cloud-suite`,
+    downloadLabel: 'View Nix Flake',
+    downloadUrl: `${GITHUB}/blob/main/flake.nix`,
+    note: 'GLF-OS provides a declarative environment. Use the provided Nix module for the most integrated experience.',
+  },
+  {
     id: 'docker',
     label: 'Docker Only',
     icon: '🐳',

@@ -207,6 +207,49 @@ https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/docker-compos
       },
     ],
   },
+  {
+    id: 'glfos',
+    label: '❄️ GLF-OS / NixOS',
+    steps: [
+      {
+        n: 1,
+        title: 'Enable Docker in Configuration',
+        desc: 'Ensure Docker is enabled in your configuration.nix or via GLF-OS settings.',
+        code: `virtualisation.docker.enable = true;
+users.users.\${username}.extraGroups = [ "docker" ];`,
+        lang: 'nix',
+      },
+      {
+        n: 2,
+        title: 'Run via Nix Flake (One-Shot)',
+        desc: 'You can run the Atomia setup directly using Nix without cloning the repository.',
+        code: `nix run github:HiTechTN/atomia-cloud-suite`,
+      },
+      {
+        n: 3,
+        title: 'Declarative Deployment (Module)',
+        desc: 'For a permanent declarative setup, import the Atomia NixOS module into your system configuration.',
+        code: `# flake.nix
+inputs.atomia.url = "github:HiTechTN/atomia-cloud-suite";
+
+# In your NixOS configuration
+imports = [ inputs.atomia.nixosModules.default ];
+
+services.atomia-cloud = {
+  enable = true;
+  domain = "atomia.local";
+  gpuSupport = true;
+};`,
+        lang: 'nix',
+      },
+      {
+        n: 4,
+        title: 'Apply and Switch',
+        desc: 'Rebuild your system to apply the changes and start the services.',
+        code: `sudo nixos-rebuild switch --flake .`,
+      },
+    ],
+  },
 ]
 
 export default function InstallSteps() {
