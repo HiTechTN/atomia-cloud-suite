@@ -1,6 +1,6 @@
 import {
   Brain, GitBranch, Code2, BarChart3, ShieldCheck,
-  Zap, Database, Globe, RefreshCw
+  Zap, Database, Globe, RefreshCw, FileText
 } from 'lucide-react'
 
 const features = [
@@ -29,8 +29,15 @@ const features = [
     icon: Database,
     color: 'from-amber-500 to-orange-600',
     glow: 'group-hover:shadow-amber-500/20',
-    title: 'Persistent RAG',
-    desc: 'Qdrant vector store + nomic-embed-text indexes your entire codebase so AI answers reference your actual project.',
+    title: 'Codebase RAG',
+    desc: 'Qdrant vector store + nomic-embed-text indexes your entire project so AI answers reference your actual logic.',
+  },
+  {
+    icon: FileText,
+    color: 'from-blue-500 to-sky-600',
+    glow: 'group-hover:shadow-blue-500/20',
+    title: 'Custom Doc RAG',
+    desc: 'Ingest PDF, TXT, and MD files using the rag-upload tool. AI chat can now reason over your documentation and notes.',
   },
   {
     icon: ShieldCheck,

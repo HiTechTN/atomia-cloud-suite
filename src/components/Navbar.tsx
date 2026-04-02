@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Github, Terminal, Menu, X } from 'lucide-react'
+import { Github, Terminal, Menu, X, LayoutDashboard } from 'lucide-react'
 
 const GITHUB_URL = 'https://github.com/HiTechTN/atomia-cloud-suite'
 const VERSION = 'v4.1.0'
 
-export default function Navbar() {
+interface Props {
+  onDashboard: () => void
+}
+
+export default function Navbar({ onDashboard }: Props) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
 
@@ -56,7 +60,14 @@ export default function Navbar() {
 
           {/* Right */}
           <div className="hidden md:flex items-center gap-3">
-            <span className="text-xs font-mono bg-sky-500/10 text-sky-400 border border-sky-500/20 px-2.5 py-1 rounded-full">
+            <button
+              onClick={onDashboard}
+              className="flex items-center gap-2 text-sm font-medium text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 px-3.5 py-1.5 rounded-lg transition-all duration-200"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </button>
+            <span className="text-xs font-mono bg-white/5 text-slate-400 border border-white/10 px-2.5 py-1 rounded-full">
               {VERSION}
             </span>
             <a
@@ -82,6 +93,16 @@ export default function Navbar() {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="md:hidden border-t border-white/5 py-4 space-y-1">
+            <button
+              onClick={() => {
+                setMobileOpen(false)
+                onDashboard()
+              }}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-sky-400 hover:bg-sky-500/10 rounded-lg transition-all duration-200"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Go to Dashboard
+            </button>
             {links.map(l => (
               <a
                 key={l.label}

@@ -131,6 +131,7 @@ alias rag-index='bash /extension/rag/rag-index.sh'
 alias upload-model='bash /extension/models/custom-model-upload.sh'
 alias github-sync='bash /extension/scripts/github-sync.sh'
 alias manage-users='bash /extension/scripts/manage-users.sh'
+alias rag-upload='bash /extension/scripts/rag-upload.sh'
 EOF
 
 ok "Atomia Code Server ready"
