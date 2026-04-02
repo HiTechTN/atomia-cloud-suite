@@ -250,6 +250,54 @@ services.atomia-cloud = {
       },
     ],
   },
+  {
+    id: 'android',
+    label: '📱 Android',
+    steps: [
+      {
+        n: 1,
+        title: 'Install Termux',
+        desc: 'Download and install Termux from F-Droid (do not use Play Store version).',
+        code: `# 1. Install F-Droid from f-droid.org
+# 2. Search for "Termux" and install it
+# 3. Open Termux and grant storage permissions:
+termux-setup-storage`,
+        lang: 'bash',
+      },
+      {
+        n: 2,
+        title: 'Update & Prerequisites',
+        desc: 'Update packages and install basic tools required for the setup.',
+        code: `pkg update && pkg upgrade -y
+pkg install curl git nodejs-lts python -y`,
+        lang: 'bash',
+      },
+      {
+        n: 3,
+        title: 'Install Linux Distro (Proot)',
+        desc: 'Since Docker is hard on Android, we recommend using a Proot-distro for a full Linux environment.',
+        code: `pkg install proot-distro -y
+proot-distro install ubuntu
+proot-distro login ubuntu`,
+        lang: 'bash',
+      },
+      {
+        n: 4,
+        title: 'Run Atomia Setup',
+        desc: 'Inside the Ubuntu environment, run the Atomia setup script.',
+        code: `curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/setup.sh | bash`,
+        lang: 'bash',
+      },
+      {
+        n: 5,
+        title: 'Access IDE/Chat',
+        desc: 'Keep Termux running in the background and access Atomia via your mobile browser.',
+        code: `# IDE: http://localhost:8443
+# Chat: http://localhost:8080`,
+        lang: 'text',
+      },
+    ],
+  },
 ]
 
 export default function InstallSteps() {

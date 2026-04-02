@@ -81,6 +81,18 @@ curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/se
     note: 'GLF-OS provides a declarative environment. Use the provided Nix module for the most integrated experience.',
   },
   {
+    id: 'android',
+    label: 'Android',
+    icon: '📱',
+    badge: 'Termux / Proot',
+    badgeColor: 'bg-green-500/20 text-green-400 border-green-500/30',
+    requirements: ['Android 10+', 'Termux (F-Droid version)', '10GB+ Free Storage', 'High-end SoC (8 Gen 1+)'],
+    installCmd: `pkg update && pkg install curl -y && curl -fsSL https://raw.githubusercontent.com/HiTechTN/atomia-cloud-suite/main/setup.sh | bash`,
+    downloadLabel: 'Download Termux',
+    downloadUrl: `https://f-droid.org/en/packages/com.termux/`,
+    note: 'Docker on Android requires Proot-distro or a rooted device. Heavy AI models may be slow.',
+  },
+  {
     id: 'docker',
     label: 'Docker Only',
     icon: '🐳',
