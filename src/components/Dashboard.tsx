@@ -1,4 +1,6 @@
-import { LayoutDashboard, MessageSquare, Code, Github, BarChart3, Settings, ShieldCheck, Cpu } from 'lucide-react'
+import { useState } from 'react'
+import { LayoutDashboard, MessageSquare, Code, Github, BarChart3, Settings, ShieldCheck, Cpu, GitBranch } from 'lucide-react'
+import GitView from './GitView'
 
 const services = [
   {
@@ -46,8 +48,10 @@ const services = [
 ]
 
 export default function Dashboard() {
+  const [tab, setTab] = useState<'services' | 'git'>('services')
+
   return (
-    <div className="min-h-screen bg-[#020B18] p-4 md:p-8 animate-fade-in">
+    <div className="min-h-screen bg-[#020B18] p-4 md:p-8 animate-fade-in pb-24">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -78,28 +82,55 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Services Grid */}
-        <h2 className="text-white text-sm font-semibold mb-4 flex items-center gap-2">
-          <LayoutDashboard className="w-4 h-4 text-sky-400" />
-          Active Services
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {services.map(s => (
-            <a
-              key={s.name}
-              href={s.url}
-              className={`group flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${s.color}`}
-            >
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                {s.icon}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-semibold text-base">{s.name}</h3>
-                <p className="text-slate-400 text-xs truncate">{s.desc}</p>
-              </div>
-            </a>
-          ))}
+        {/* Tab Switcher */}
+        <div className="flex p-1 rounded-xl bg-white/5 border border-white/5 mb-8">
+          <button
+            onClick={() => setTab('services')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              tab === 'services' ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Services
+          </button>
+          <button
+            onClick={() => setTab('git')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              tab === 'git' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <GitBranch className="w-4 h-4" />
+            Git
+          </button>
         </div>
+
+        {tab === 'services' ? (
+          <div className="animate-fade-in">
+            <h2 className="text-white text-sm font-semibold mb-4 flex items-center gap-2">
+              <LayoutDashboard className="w-4 h-4 text-sky-400" />
+              Active Services
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {services.map(s => (
+                <a
+                  key={s.name}
+                  href={s.url}
+                  className={`group flex items-center gap-4 p-4 rounded-2xl border transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${s.color}`}
+                >
+                  <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                    {s.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold text-base">{s.name}</h3>
+                    <p className="text-slate-400 text-xs truncate">{s.desc}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <GitView />
+        )}
 
         {/* Info Box */}
         <div className="mt-8 p-4 rounded-2xl bg-sky-500/5 border border-sky-500/10">

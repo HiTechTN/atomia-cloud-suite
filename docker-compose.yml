@@ -96,6 +96,8 @@ services:
       - ENABLE_MESSAGE_RATING=true
     volumes:
       - openwebui-data:/app/backend/data:rw
+      - code-server-projects:/projects:rw
+      - ./webui/tools:/app/backend/data/tools:ro
     depends_on:
       ollama:
         condition: service_healthy
@@ -125,6 +127,12 @@ services:
       - AUTHELIA_JWT_SECRET=${AUTHELIA_JWT_SECRET:-change_this_jwt_secret_min32chars}
       - AUTHELIA_SESSION_SECRET=${AUTHELIA_SESSION_SECRET:-change_this_session_secret_32c}
       - AUTHELIA_STORAGE_ENCRYPTION_KEY=${AUTHELIA_STORAGE_KEY:-change_this_storage_key_32chars}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USER=${MAIL_USER:-}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-}
+      - MAIL_FROM=${MAIL_FROM:-noreply@atomia.local}
+      - MAIL_SKIP_VERIFY=${MAIL_SKIP_VERIFY:-true}
     volumes:
       - ./authelia/configuration.yml:/config/configuration.yml:ro
       - ./authelia/users_database.yml:/config/users_database.yml:rw

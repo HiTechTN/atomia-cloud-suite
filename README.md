@@ -243,18 +243,45 @@ RAG_CHUNK_OVERLAP=64    # overlap between consecutive chunks
 RAG_EMBEDDING_MODEL=nomic-embed-text
 ```
 
-### Use in Chat
+### Ingest Documents
 
-After indexing, reference your project in Continue:
+You can also ingest non-code documents (PDF, TXT, MD) into a dedicated collection:
 
+```bash
+rag-upload ./my-docs/specs.pdf documentation
 ```
-@codebase where is the JWT validation logic?
-@codebase add error handling to the payment service
-```
+
+AI chat can then reason over these documents in OpenWebUI.
 
 ---
 
-## Remote Debugging
+## Custom AI Tools
+Atomia supports custom tools for OpenWebUI. The `file_tool.py` is pre-configured to allow AI to interact with your `/projects` directory.
+
+### Capabilities:
+- `list_files`: Browse your project structure.
+- `read_file`: Analyze specific file contents.
+- `write_file`: Generate or update code files directly.
+- `delete_path`: Manage your workspace filesystem.
+
+---
+
+## Unified Dashboard (Mobile-First)
+Access the Atomia Control Panel at http://localhost:8080 (main UI) or use the built-in Dashboard for quick Git and Service management.
+
+### Git Features:
+- Browse local repositories.
+- View staged changes and commit history.
+- Commit & Push directly from your phone.
+
+---
+
+## Notifications
+Atomia supports SMTP email notifications for:
+- Authelia MFA alerts & Password resets.
+- Gitea CI/CD events & PR updates.
+
+Configure your SMTP settings in `.env`.
 
 Code Server exposes three debug ports on the host:
 

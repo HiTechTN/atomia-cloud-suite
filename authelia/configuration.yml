@@ -42,14 +42,15 @@ storage:
 
 # Notification transport (use filesystem for offline / SMTP for production)
 notifier:
-  filesystem:
-    filename: /var/lib/authelia/notification.txt
-  # smtp:
-  #   username: ${MAIL_USER}
-  #   password: ${MAIL_PASSWORD}
-  #   host: ${MAIL_HOST}
-  #   port: ${MAIL_PORT}
-  #   sender: "Atomia Auth <noreply@atomia.local>"
+  disable_startup_check: false
+  smtp:
+    host: "{{ env \"MAIL_HOST\" }}"
+    port: {{ env \"MAIL_PORT\" }}
+    username: "{{ env \"MAIL_USER\" }}"
+    password: "{{ env \"MAIL_PASSWORD\" }}"
+    sender: "{{ env \"MAIL_FROM\" }}"
+    tls:
+      skip_verify: {{ env \"MAIL_SKIP_VERIFY\" | default \"true\" }}
 
 # Access control rules
 # First matching rule wins
