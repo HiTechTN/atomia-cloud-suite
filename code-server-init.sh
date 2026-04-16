@@ -16,6 +16,14 @@ warn() { echo "[init] ⚠ $*"; }
 
 log "Starting Atomia Code Server initialisation..."
 
+# ── 0. Install missing dependencies ──────────────────────────────────────────
+# Ensure jq and poppler-utils (for pdftotext) are available for RAG tools
+if ! command -v jq &>/dev/null || ! command -v pdftotext &>/dev/null; then
+    log "Installing missing system dependencies (jq, poppler-utils)..."
+    sudo apt-get update -q
+    sudo apt-get install -y -q jq poppler-utils curl git openssl
+fi
+
 # ── 1. Continue.dev config ────────────────────────────────────────────────────
 if [ -f /extension/continue/config.json ]; then
     mkdir -p ~/.continue

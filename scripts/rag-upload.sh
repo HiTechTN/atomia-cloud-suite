@@ -33,6 +33,10 @@ FILE_PATH="$1"
 COLLECTION="${2:-documents}"
 COLLECTION="$(echo "$COLLECTION" | tr '[:upper:] ' '[:lower:]-')"
 
+# ── Check Dependencies ─────────────────────────────────────────────────────────
+command -v jq &>/dev/null || err "jq is not installed."
+command -v curl &>/dev/null || err "curl is not installed."
+
 # ── Check Services ─────────────────────────────────────────────────────────────
 curl -sf "$QDRANT_URL/health" >/dev/null || err "Qdrant not reachable"
 curl -sf "$OLLAMA_URL/api/tags" >/dev/null || err "Ollama not reachable"

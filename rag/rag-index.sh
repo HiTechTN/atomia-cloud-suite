@@ -56,6 +56,10 @@ log " Collection:   $COLLECTION"
 log " Embeddings:   $EMBED_MODEL"
 log "═══════════════════════════════════════════════"
 
+# ── Check dependencies ─────────────────────────────────────────────────────────
+command -v jq &>/dev/null || err "jq is not installed."
+command -v curl &>/dev/null || err "curl is not installed."
+
 # ── Check services ─────────────────────────────────────────────────────────────
 curl -sf "$QDRANT_URL/health" >/dev/null || err "Qdrant not reachable at $QDRANT_URL"
 curl -sf "$OLLAMA_URL/api/tags" >/dev/null || err "Ollama not reachable at $OLLAMA_URL"

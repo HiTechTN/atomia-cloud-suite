@@ -18,9 +18,37 @@ banner
 echo ""
 
 # =============================================================================
-# 1. Docker
+# 1. Requirements & Dependencies
 # =============================================================================
-echo -e "${YELLOW}[1/6] Checking Docker...${NC}"
+echo -e "${YELLOW}[1/6] Installing system dependencies...${NC}"
+
+install_deps() {
+    local deps=("curl" "git" "jq" "openssl" "poppler-utils" "tar" "gzip" "ca-certificates" "gnupg" "lsb-release")
+    
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update -y -q
+            sudo apt-get install -y -q "${deps[@]}"
+        elif command -v dnf &>/dev/null; then
+            sudo dnf install -y -q "${deps[@]}"
+        elif command -v pacman &>/dev/null; then
+            sudo pacman -Sy --noconfirm -q "${deps[@]}"
+        else
+            echo -e "${YELLOW}⚠ Package manager not recognized. Please install: ${deps[*]}${NC}"
+        fi
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        if command -v brew &>/dev/null; then
+            brew install "${deps[@]}"
+        else
+            echo -e "${RED}Homebrew not found. Please install it to continue: https://brew.sh/${NC}"
+            exit 1
+        fi
+    fi
+}
+
+install_deps
+
+# Docker & Compose check
 if command -v docker &>/dev/null; then
     echo -e "${GREEN}✓ Docker $(docker --version)${NC}"
 else
@@ -28,19 +56,20 @@ else
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh && rm get-docker.sh
     sudo usermod -aG docker "$USER"
-    echo -e "${GREEN}✓ Docker installed${NC}"
+    echo -e "${GREEN}✓ Docker installed (Please logout/login for group changes to take effect)${NC}"
 fi
 
-# =============================================================================
-# 2. Docker Compose
-# =============================================================================
-echo -e "${YELLOW}[2/6] Checking Docker Compose...${NC}"
-if docker compose version &>/dev/null; then
-    echo -e "${GREEN}✓ Docker Compose available${NC}"
-else
-    echo -e "${RED}Docker Compose not found. Install Docker Desktop or the Compose plugin.${NC}"
-    exit 1
+if ! docker compose version &>/dev/null; then
+    echo -e "${YELLOW}Installing Docker Compose plugin...${NC}"
+    if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v apt-get &>/dev/null; then
+        sudo apt-get update -y -q
+        sudo apt-get install -y -q docker-compose-plugin
+    else
+        echo -e "${RED}Docker Compose not found. Please install the Docker Compose plugin manually.${NC}"
+        exit 1
+    fi
 fi
+echo -e "${GREEN}✓ Docker Compose available${NC}"
 
 # =============================================================================
 # 3. GPU Detection

@@ -71,6 +71,66 @@ class Tools:
         except Exception as e:
             return f"Error: {str(e)}"
 
+    def create_directory(self, directory_path: str) -> str:
+        """
+        Create a new directory.
+        :param directory_path: The path to the directory to create (relative to /projects).
+        :return: A success or error message.
+        """
+        try:
+            full_path = os.path.abspath(os.path.join(self.base_path, directory_path))
+            if not full_path.startswith(self.base_path):
+                return "Error: Access denied. Cannot create directory outside of /projects."
+            
+            os.makedirs(full_path, exist_ok=True)
+            return f"Successfully created directory '{directory_path}'."
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+    def rename_path(self, old_path: str, new_path: str) -> str:
+        """
+        Rename a file or directory.
+        :param old_path: The current path (relative to /projects).
+        :param new_path: The new path (relative to /projects).
+        :return: A success or error message.
+        """
+        try:
+            full_old_path = os.path.abspath(os.path.join(self.base_path, old_path))
+            full_new_path = os.path.abspath(os.path.join(self.base_path, new_path))
+            
+            if not full_old_path.startswith(self.base_path) or not full_new_path.startswith(self.base_path):
+                return "Error: Access denied. Cannot rename outside of /projects."
+            
+            if not os.path.exists(full_old_path):
+                return f"Error: Path '{old_path}' not found."
+            
+            os.rename(full_old_path, full_new_path)
+            return f"Successfully renamed '{old_path}' to '{new_path}'."
+        except Exception as e:
+            return f"Error: {str(e)}"
+
+    def move_path(self, source_path: str, destination_path: str) -> str:
+        """
+        Move a file or directory to a new location.
+        :param source_path: The source path (relative to /projects).
+        :param destination_path: The destination path (relative to /projects).
+        :return: A success or error message.
+        """
+        try:
+            full_src_path = os.path.abspath(os.path.join(self.base_path, source_path))
+            full_dest_path = os.path.abspath(os.path.join(self.base_path, destination_path))
+            
+            if not full_src_path.startswith(self.base_path) or not full_dest_path.startswith(self.base_path):
+                return "Error: Access denied. Cannot move outside of /projects."
+            
+            if not os.path.exists(full_src_path):
+                return f"Error: Path '{source_path}' not found."
+            
+            shutil.move(full_src_path, full_dest_path)
+            return f"Successfully moved '{source_path}' to '{destination_path}'."
+        except Exception as e:
+            return f"Error: {str(e)}"
+
     def delete_path(self, path: str) -> str:
         """
         Delete a file or directory.

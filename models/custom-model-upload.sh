@@ -20,7 +20,18 @@ err()  { echo -e "${RED}[model] ✗${NC} $*"; exit 1; }
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 MODELS_DIR="${OLLAMA_DATA_PATH:-./data/ollama}"
 
+# ── Check Dependencies ─────────────────────────────────────────────────────────
+check_deps() {
+    local deps=("curl" "jq" "cp" "mkdir" "sed" "tr" "basename")
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &>/dev/null; then
+            err "Required dependency '$dep' is not installed."
+        fi
+    done
+}
+
 # ── Args ───────────────────────────────────────────────────────────────────────
+check_deps
 MODEL_FILE="${1:-}"
 MODEL_NAME="${2:-}"
 TEMPLATE="${3:-general}"

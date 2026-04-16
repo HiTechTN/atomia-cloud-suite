@@ -46,7 +46,21 @@ ok()  { echo -e "${GREEN}[$(date +%T)] ✓${NC} $*" | tee -a "$LOG_FILE"; }
 warn(){ echo -e "${YELLOW}[$(date +%T)] ⚠${NC} $*" | tee -a "$LOG_FILE"; }
 err() { echo -e "${RED}[$(date +%T)] ✗${NC} $*" | tee -a "$LOG_FILE"; }
 
+# ── Check Dependencies ─────────────────────────────────────────────────────────
+check_deps() {
+    local deps=("tar" "gzip" "date" "du")
+    [ -n "$ENCRYPT" ] && deps+=("openssl")
+    [ -n "$RCLONE_REMOTE" ] && deps+=("rclone")
+
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &>/dev/null; then
+            err "Required dependency '$dep' is not installed."
+        fi
+    done
+}
+
 # ── Start ─────────────────────────────────────────────────────────────────────
+check_deps
 mkdir -p "$BACKUP_DIR"
 log "═══════════════════════════════════════════════"
 log " ATOMIA BACKUP — $DATE"

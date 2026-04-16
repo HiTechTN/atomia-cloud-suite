@@ -29,7 +29,21 @@ ok()   { echo -e "${GREEN}[$(date +%T)] ✓${NC} $*"; }
 warn() { echo -e "${YELLOW}[$(date +%T)] ⚠${NC} $*"; }
 err()  { echo -e "${RED}[$(date +%T)] ✗${NC} $*"; exit 1; }
 
+# ── Check Dependencies ─────────────────────────────────────────────────────────
+check_deps() {
+    local deps=("git" "docker" "curl" "date")
+    for dep in "${deps[@]}"; do
+        if ! command -v "$dep" &>/dev/null; then
+            err "Required dependency '$dep' is not installed."
+        fi
+    done
+    if ! docker compose version &>/dev/null; then
+        err "Docker Compose plugin is not installed."
+    fi
+}
+
 # ── Validate ───────────────────────────────────────────────────────────────────
+check_deps
 [[ "$ENV" != "staging" && "$ENV" != "production" ]] && \
   err "Unknown environment '$ENV'. Use staging or production."
 
